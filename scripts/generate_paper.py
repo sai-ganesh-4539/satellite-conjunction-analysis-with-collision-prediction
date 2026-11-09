@@ -277,6 +277,6 @@ for ref in refs:
     p.paragraph_format.space_after = Pt(3)
 
 # ─── Save ────────────────────────────────────────────────────────
-output_path = '/home/z/my-project/download/satellite-retnet/research_paper.docx'
+output_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'research_paper.docx')
 doc.save(output_path)
 print(f'Saved: {output_path}')
