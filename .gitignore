@@ -1,0 +1,10 @@
+# Big files — don't push these
+*.pt
+*.pth
+__pycache__/
+*.pyc
+.venv/
+venv/
+env/
+.ipynb_checkpoints/
+task-*.log

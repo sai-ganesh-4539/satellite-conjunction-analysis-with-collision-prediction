@@ -1,0 +1,74 @@
+{
+  "Majority class": {
+    "auc_roc": 0.5,
+    "avg_precision": 0.254,
+    "accuracy": 0.746,
+    "precision": 0.0,
+    "recall": 0.0,
+    "f1": 0.0,
+    "confusion_matrix": [
+      [
+        94,
+        0
+      ],
+      [
+        32,
+        0
+      ]
+    ]
+  },
+  "Logistic regression": {
+    "auc_roc": 0.8597,
+    "avg_precision": 0.6943,
+    "accuracy": 0.7857,
+    "precision": 0.5641,
+    "recall": 0.6875,
+    "f1": 0.6197,
+    "confusion_matrix": [
+      [
+        77,
+        17
+      ],
+      [
+        10,
+        22
+      ]
+    ]
+  },
+  "Random forest": {
+    "auc_roc": 0.8931,
+    "avg_precision": 0.7618,
+    "accuracy": 0.8571,
+    "precision": 0.75,
+    "recall": 0.6562,
+    "f1": 0.7,
+    "confusion_matrix": [
+      [
+        87,
+        7
+      ],
+      [
+        11,
+        21
+      ]
+    ]
+  },
+  "Gradient boosting": {
+    "auc_roc": 0.9348,
+    "avg_precision": 0.882,
+    "accuracy": 0.9286,
+    "precision": 0.9259,
+    "recall": 0.7812,
+    "f1": 0.8475,
+    "confusion_matrix": [
+      [
+        92,
+        2
+      ],
+      [
+        7,
+        25
+      ]
+    ]
+  }
+}

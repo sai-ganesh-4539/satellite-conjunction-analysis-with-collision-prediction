@@ -1,0 +1,16 @@
+RetNet vs Transformer - Test Set Metrics
+==================================================
+Metric              RetNet  Transformer     Winner
+--------------------------------------------------
+accuracy            0.8095       0.8492 Transformer
+precision           0.6053       0.7407 Transformer
+recall              0.7188       0.6250     RetNet
+f1                  0.6571       0.6780 Transformer
+auc_roc             0.8783       0.8996 Transformer
+
+RetNet Confusion Matrix:
+[[79 15]
+ [ 9 23]]
+Transformer Confusion Matrix:
+[[87  7]
+ [12 20]]

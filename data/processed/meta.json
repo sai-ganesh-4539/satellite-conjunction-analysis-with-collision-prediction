@@ -1,0 +1,30 @@
+{
+  "seq_len": 12,
+  "pc_threshold": 0.001,
+  "features": [
+    "log_min_rng",
+    "t_index",
+    "rcs1",
+    "rcs2",
+    "ot1_DEBRIS",
+    "ot1_PAYLOAD",
+    "ot1_ROCKET_BODY",
+    "ot2_DEBRIS",
+    "ot2_PAYLOAD",
+    "ot2_ROCKET_BODY",
+    "ot2_UNKNOWN",
+    "tca_hour_sin",
+    "tca_hour_cos",
+    "tca_dow_sin",
+    "tca_dow_cos"
+  ],
+  "n_events": 735,
+  "n_pos": 117,
+  "train": 514,
+  "val": 110,
+  "test": 111,
+  "train_pos": 82,
+  "val_pos": 17,
+  "test_pos": 18,
+  "seed": 42
+}
