@@ -47,7 +47,7 @@ In this work, we provide:
     \item \textbf{Comprehensive Model Hierarchy:} We evaluate eight architectures spanning naive baselines, Markov Chain state transitions, Autoregressive/ARIMA time-series models, Logistic Regression, Random Forest, HistGradientBoosting, Standard Transformer, and RetNet.
     \item \textbf{Dynamic Sequence Packing:} We implement causal sequence packing (\texttt{pack\_real\_first}) that moves non-zero observations to the front, eliminating padding artifacts and NaN attention scores.
     \item \textbf{Multi-Scheme Grouped CV Audit:} We evaluate models under strict graph-component grouping (Union-Find) ensuring zero satellite overlap across splits, revealing that tree models drop from 0.954 to 0.777 while regularized linear models generalize robustly (0.823).
-    \item \textbf{Operational Monte Carlo Engine \& CLI Tool:} We build an interactive mission control tool (\texttt{orbit\_guard.py}) backed by a vectorized 1,000,000-sample Monte Carlo simulator, demonstrating a verified $>2,500\times$ acceleration.
+    \item \textbf{Operational Monte Carlo Engine \& CLI Tool:} We build an interactive mission control tool (\texttt{orbit\_guard.py}) backed by a vectorized 1,000,000-sample Monte Carlo simulator, demonstrating a verified $\approx 35\times\text{--}38\times$ acceleration over 2D B-plane Monte Carlo and an estimated $>2,500\times$ acceleration over 3D orbit propagation from external literature.
 \end{enumerate}
 
 \section{Astrodynamics & Problem Formulation}
@@ -78,6 +78,13 @@ S_n = \gamma S_{n-1} + k_n^T v_n, \quad o_n = q_n S_n
 \end{equation}
 where $S_n \in \mathbb{R}^{d \times d}$ is the recurrent state matrix, providing strict $O(1)$ constant memory and constant inference time per update.
 
+\subsection{Causal Transformer Baseline}
+The deep sequence baseline (\texttt{TransformerBaseline}) consists of a 3-layer Transformer encoder ($d_{\text{model}} = 64, n_{\text{heads}} = 4, d_{\text{ff}} = 256$, dropout = 0.1). Sequences are dynamically packed using \texttt{pack\_real\_first} such that valid historical updates occupy contiguous leading indices $0 \le t < k$, with padding tokens located strictly at the end. Attention weights are constrained by an upper-triangular causal mask:
+\begin{equation}
+M_{i, j} = \begin{cases} 0, & j \le i \\ -\infty, & j > i \end{cases}
+\end{equation}
+enforcing $A_{i, j} = 0$ for all $j > i$ via \texttt{torch.nn.Transformer.generate\_square\_subsequent\_mask(T)} with \texttt{is\_causal=True}. Over an observed historical prefix $\mathcal{S}_k = \{\mathbf{x}_1, \dots, \mathbf{x}_k\}$, each CDM represents past tracking telemetry obtained leading up to TCA. Applying a causal encoder over this prefix evaluates trajectory evolution up to decision epoch $k$ without lookahead leakage into unobserved future CDMs ($t > k$). The pooled output at step $k$ predicts the final collision risk triage at TCA.
+
 \section{Experimental Results}
 
 \begin{table*}[t]
@@ -94,8 +101,8 @@ Statistical & ARIMA / Autoregressive & $0.7838 \pm 0.0481$ & $0.6351 \pm 0.0828$
 Linear & Logistic Regression (L2) & $0.8424 \pm 0.0299$ & $0.6700 \pm 0.0653$ & $0.7727 \pm 0.0436$ & $0.6107 \pm 0.0396$ & $0.1602$ & $0.1449$ & $\mathbf{0.156\text{ ms}}$ \\
 Tree Ensemble & Random Forest (200 trees) & $0.9050 \pm 0.0357$ & $0.7957 \pm 0.0684$ & $0.8361 \pm 0.0401$ & $0.6815 \pm 0.0617$ & $0.1119$ & $0.1054$ & $7.772\text{ ms}$ \\
 Gradient Boost & HistGradientBoosting & $\mathbf{0.9086 \pm 0.0226}$ & $\mathbf{0.8121 \pm 0.0439}$ & $\mathbf{0.8744 \pm 0.0296}$ & $\mathbf{0.7361 \pm 0.0714}$ & $\mathbf{0.1028}$ & $0.0950$ & $1.557\text{ ms}$ \\
-Deep Sequence & Standard Transformer & $0.8524 \pm 0.0264$ & $0.6590 \pm 0.0476$ & $0.7858 \pm 0.0531$ & $0.6227 \pm 0.0471$ & $0.1475$ & $0.1372$ & $1.388\text{ ms}$ \\
-Deep Surrogate & RetNet (Proposed) & $0.8155 \pm 0.0362$ & $0.6328 \pm 0.0455$ & $0.7679 \pm 0.0414$ & $0.5583 \pm 0.0749$ & $0.1522$ & $0.0960$ & $\mathbf{1.206\text{ ms}}$ \\
+Deep Sequence & Standard Transformer & $0.8524 \pm 0.0264$ & $0.6590 \pm 0.0476$ & $0.7858 \pm 0.0531$ & $0.6227 \pm 0.0471$ & $0.1475$ & $0.1372$ & $1.728\text{ ms}$ \\
+Deep Surrogate & RetNet (Proposed) & $0.8155 \pm 0.0362$ & $0.6328 \pm 0.0455$ & $0.7679 \pm 0.0414$ & $0.5583 \pm 0.0749$ & $0.1522$ & $0.0960$ & $\mathbf{1.210\text{ ms}}$ \\
 \bottomrule
 \end{tabular}
 \end{table*}
@@ -134,7 +141,7 @@ Group by SAT 2 & $0.950 \pm 0.026$ & $0.923 \pm 0.027$ & $0.836 \pm 0.022$ \\
 \end{table}
 
 \section{Discussion & Conclusion}
-Our findings show that tabular gradient boosting achieves the highest discriminative performance on in-catalog encounters ($0.909$ AUC), successfully screening out $65.4\%$ of conjunctions. However, the Grouped CV audit reveals an 18-point drop for tree models when evaluated on completely unseen satellites, whereas regularized linear models maintain solid generalization ($0.823$ AUC). Deep sequence models provide constant $O(1)$ streaming inference on flight avionics, and our integrated Monte Carlo engine demonstrates a verified $15\times\text{--}40\times$ acceleration over 2D B-plane particle sampling and an estimated $>2,500\times$ speedup over 3D numerical trajectory propagation. Illustrative collision avoidance maneuvers are demonstrated with explicit flight safety disclaimers.
+Our findings show that tabular gradient boosting achieves the highest discriminative performance on in-catalog encounters ($0.909$ AUC), successfully screening out $65.4\%$ of conjunctions. However, the Grouped CV audit reveals an 18-point drop for tree models when evaluated on completely unseen satellites, whereas regularized linear models maintain solid generalization ($0.823$ AUC). Deep sequence models provide constant $O(1)$ streaming inference on flight avionics, and our integrated Monte Carlo engine demonstrates a verified $\approx 35\times\text{--}38\times$ acceleration over 2D B-plane particle sampling ($41.95\text{ ms}$) and an estimated $>2,500\times$ speedup over 3D numerical trajectory propagation ($\approx 3,000\text{ ms}$, external literature estimate). Illustrative collision avoidance maneuvers are demonstrated with explicit flight safety disclaimers.
 
 \begin{thebibliography}{10}
 \bibitem{vaswani2017} A.~Vaswani \emph{et~al.}, ``Attention is all you need,'' in \emph{NeurIPS}, 2017.

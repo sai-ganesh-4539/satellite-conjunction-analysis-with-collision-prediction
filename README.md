@@ -92,8 +92,8 @@ Evaluated across 836 real orbital encounters under a unified 5-fold cross-valida
 | **Linear Tabular** | Logistic Regression (L2) | $0.8424 \pm 0.0299$ | $0.6700 \pm 0.0653$ | $0.7727 \pm 0.0436$ | $0.6107 \pm 0.0396$ | $0.1602$ | $0.1449$ | $\mathbf{0.156\text{ ms}}$ |
 | **Tree Ensemble** | Random Forest (200 trees) | $0.9050 \pm 0.0357$ | $0.7957 \pm 0.0684$ | $0.8361 \pm 0.0401$ | $0.6815 \pm 0.0617$ | $0.1119$ | $0.1054$ | $7.772\text{ ms}$ |
 | **Gradient Boost** | **HistGradientBoosting** | $\mathbf{0.9086 \pm 0.0226}$ | $\mathbf{0.8121 \pm 0.0439}$ | $\mathbf{0.8744 \pm 0.0296}$ | $\mathbf{0.7361 \pm 0.0714}$ | $\mathbf{0.1028}$ | $0.0950$ | $1.557\text{ ms}$ |
-| **Deep Sequence** | Standard Transformer | $0.8524 \pm 0.0264$ | $0.6590 \pm 0.0476$ | $0.7858 \pm 0.0531$ | $0.6227 \pm 0.0471$ | $0.1475$ | $0.1372$ | $1.388\text{ ms}$ |
-| **Deep Surrogate** | RetNet (Proposed) | $0.8155 \pm 0.0362$ | $0.6328 \pm 0.0455$ | $0.7679 \pm 0.0414$ | $0.5583 \pm 0.0749$ | $0.1522$ | $0.0960$ | $\mathbf{1.206\text{ ms}}$ |
+| **Deep Sequence** | Standard Transformer | $0.8524 \pm 0.0264$ | $0.6590 \pm 0.0476$ | $0.7858 \pm 0.0531$ | $0.6227 \pm 0.0471$ | $0.1475$ | $0.1372$ | $1.728\text{ ms}$ |
+| **Deep Surrogate** | RetNet (Proposed) | $0.8155 \pm 0.0362$ | $0.6328 \pm 0.0455$ | $0.7679 \pm 0.0414$ | $0.5583 \pm 0.0749$ | $0.1522$ | $0.0960$ | $\mathbf{1.210\text{ ms}}$ |
 
 ### Key Benchmark Insights
 1. **Tree Ensembles Lead on Sparse Sequences:** 59.5% of satellite encounters have $\le 3$ updates. Tabular gradient boosting on 71 summary statistics achieves the highest discrimination ($0.9086$ AUC), screening out $65.4\%$ of non-critical events at an operating recall of $84.3\%$.
@@ -193,9 +193,9 @@ NUMERICAL MONTE CARLO INTEGRATION BENCHMARK (1,000,000 B-Plane Particles)...
   [NOTE: Sampling verification of 2D isotropic Gaussian integral; not independent orbit determination]
   * Monte Carlo Collision Prob: 2.3799e-02 (Hits: 23,799 / 1,000,000)
   * 95% Wilson Confidence Band: [2.3502e-02, 2.4100e-02]
-  * 2D Monte Carlo Timing:      47.8 ms (1,000,000 samples)
-  * RetNet Inference Latency:   3.20 ms
-  * Speedup vs 2D B-Plane MC:   15x faster (3.20 ms vs 47.8 ms)
+  * 2D Monte Carlo Timing:      41.95 ms (median, 1,000,000 samples; mean 43.61 ms)
+  * RetNet Inference Latency:   1.21 ms (single encounter)
+  * Speedup vs 2D B-Plane MC:   34.7x faster (1.21 ms vs 41.95 ms; 38.2x in pipeline)
   * Est. Speedup vs 3D Prop:    ~2,500x faster (surrogate vs ~3,000 ms numerical integration)
 
 ================================================================================
@@ -261,7 +261,7 @@ python -m pytest tests/
 
 1. **Isotropic Covariance Calibration:** Public Space-Track CDMs omit 2x2 B-plane covariance matrices. An isotropic scale $\sigma$ was solved to match catalog $P_c$. Because real-world orbital encounters feature highly elongated, anisotropic covariances along the orbit track, 71% of high-risk cases required inflating the hard-body radius to match catalog $P_c$. Monte Carlo simulations here verify the **numerical sampling fidelity of the analytical integral**, not an independent physical orbit determination.
 2. **Illustrative CAM Heuristic Disclaimer:** The Collision Avoidance Maneuver (CAM) $\Delta v$ is calculated from linearized along-track Clohessy-Wiltshire secular drift. It is strictly an **illustrative demonstration heuristic**. Real flight operations require full 6-DOF numerical ephemeris propagation with high-order gravity ($J_{70,70}$), atmospheric drag variations, attitude slew constraints, and mandatory catalog-wide secondary conjunction screening.
-3. **Speedup Comparison Specifics:** RetNet inference takes $1.21\text{ ms}$. This represents a $15\times\text{--}40\times$ speedup over 2D B-plane Monte Carlo sampling ($47.8\text{ ms}$ for $10^6$ particles) and an estimated $>2,500\times$ speedup over full 3D numerical orbit propagation ($3,000\text{--}5,000\text{ ms}$).
+3. **Speedup Comparison Specifics:** RetNet inference takes $1.210\text{ ms}$. This represents a $34.7\times$ speedup over measured 2D B-plane Monte Carlo sampling ($41.95\text{ ms}$ median, $43.61\text{ ms}$ mean for $10^6$ particles; $38.2\times$ in pipeline) and an estimated $>2,500\times$ speedup over full 3D numerical orbit propagation ($~3,000\text{ ms}$, external literature estimate). All latencies were measured on a dedicated single-core CPU, batch size 1, across 100 repetitions after 10 warmups, excluding disk I/O and SATCAT merging.
 
 ---
 

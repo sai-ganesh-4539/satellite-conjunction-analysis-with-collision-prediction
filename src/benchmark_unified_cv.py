@@ -54,8 +54,7 @@ from scipy.stats import ttest_rel
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
 
-from model import RetNetForCollisionPrediction, TransformerBaseline
-from run_pipeline import FocalLoss
+from model import FocalLoss, RetNetForCollisionPrediction, TransformerBaseline
 from config import (
     D_MODEL, N_HEADS, N_LAYERS, D_FF, DROPOUT, GAMMAS,
     LR, WEIGHT_DECAY, WARMUP_RATIO, FOCAL_ALPHA, FOCAL_GAMMA, PATIENCE
@@ -440,23 +439,17 @@ def run_unified_cross_validation(n_splits=5, epochs=40, seed=42):
             latencies = json.load(f)
 
     # Save complete JSON
-    out_json = os.path.join(RESULTS_DIR, "benchmark_unified_cv_revised.json")
-    scratch_json = os.path.join("C:/Users/Hp/.gemini/antigravity/brain/2eca4be5-1166-4cd3-8784-cb75530da42b/scratch", "benchmark_unified_cv.json")
-    for path in [out_json, scratch_json]:
-        try:
-            with open(path, "w", encoding="utf-8") as f:
-                json.dump({
-                    "summary": summary,
-                    "statistical_tests": {
-                        "retnet_vs_transformer": {"t_stat": float(t_ret_trans), "p_value": float(p_ret_trans)},
-                        "retnet_vs_histgb": {"t_stat": float(t_ret_hgb), "p_value": float(p_ret_hgb)},
-                    },
-                    "latencies": latencies,
-                }, f, indent=2)
-            print(f"\nSaved full benchmark data to: {path}")
-            break
-        except Exception as e:
-            print(f"Warning saving JSON to {path}: {e}")
+    out_json = os.path.join(RESULTS_DIR, "benchmark_unified_cv.json")
+    with open(out_json, "w", encoding="utf-8") as f:
+        json.dump({
+            "summary": summary,
+            "statistical_tests": {
+                "retnet_vs_transformer": {"t_stat": float(t_ret_trans), "p_value": float(p_ret_trans)},
+                "retnet_vs_histgb": {"t_stat": float(t_ret_hgb), "p_value": float(p_ret_hgb)},
+            },
+            "latencies": latencies,
+        }, f, indent=2)
+    print(f"\nSaved full benchmark data to: {out_json}")
 
     # Generate Markdown Report
     generate_markdown_report(summary, p_ret_trans, p_ret_hgb, latencies)

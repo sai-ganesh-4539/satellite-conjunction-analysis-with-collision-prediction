@@ -74,8 +74,8 @@
 | **Logistic Regression** | Linear Tabular | 0.8424 ± 0.0299 | 0.6700 ± 0.0653 | 0.7727 ± 0.0436 | 0.1602 ± 0.0289 | 0.1449 ± 0.0377 | **0.156 ms** |
 | **Random Forest (200 trees)**| Tree Ensemble | 0.9050 ± 0.0357 | 0.7957 ± 0.0684 | 0.8361 ± 0.0401 | 0.1119 ± 0.0198 | 0.1054 ± 0.0235 | 7.772 ms |
 | **HistGradientBoosting** | Gradient Boosting | **0.9086 ± 0.0226** | **0.8121 ± 0.0439** | **0.8744 ± 0.0296** | **0.1028 ± 0.0203** | 0.0950 ± 0.0160 | 1.557 ms |
-| **Standard Transformer** | Deep Sequence | 0.8307 ± 0.0369 | 0.6440 ± 0.0633 | 0.7655 ± 0.0499 | 0.1586 ± 0.0162 | 0.1444 ± 0.0117 | 1.728 ms |
-| **RetNet Surrogate (Ours)**| Deep Surrogate | 0.7506 ± 0.0484 | 0.5349 ± 0.0722 | 0.7308 ± 0.0251 | 0.1819 ± 0.0178 | 0.1466 ± 0.0296 | **1.210 ms** |
+| **Standard Transformer** | Deep Sequence | 0.8524 ± 0.0264 | 0.6590 ± 0.0476 | 0.7858 ± 0.0531 | 0.1475 ± 0.0152 | 0.1372 ± 0.0210 | 1.728 ms |
+| **RetNet Surrogate (Ours)**| Deep Surrogate | 0.8155 ± 0.0362 | 0.6328 ± 0.0455 | 0.7679 ± 0.0414 | 0.1522 ± 0.0187 | 0.0960 ± 0.0228 | **1.210 ms** |
 
 - **What to Say:**
   > *"Looking at Table 1 across our 5 cross-validation folds, tabular gradient boosting achieves the highest overall discriminative performance at 0.909 AUC and 0.812 Average Precision. The Standard Transformer achieves 0.852 AUC, while RetNet achieves 0.816 AUC. A paired t-test ($p = 0.0745$) reflects an empirical trend favoring Transformer attention on sparse updates, though not statistically significant at alpha = 0.05, because softmax attention sharpens focus on isolated radar updates compared to unnormalized linear retention."*
@@ -90,8 +90,8 @@
 | **Logistic Regression** | $0.31 \pm 0.08$ | 85.71% ± 4.99% | 44.22% ± 5.15% | 0.5804 ± 0.0399 | 48.7% | 51.3% |
 | **Random Forest** | $0.30 \pm 0.04$ | **92.38% ± 4.86%** | 50.15% ± 5.25% | 0.6495 ± 0.0544 | 46.3% | 53.7% |
 | **HistGradientBoosting** | $0.13 \pm 0.19$ | 84.29% ± 5.55% | **61.24% ± 10.72%** | **0.7034 ± 0.0741** | **34.6%** | **65.4%** |
-| **Standard Transformer** | $0.35 \pm 0.05$ | 88.57% ± 5.91% | 41.64% ± 4.55% | 0.5632 ± 0.0333 | 53.4% | 46.6% |
-| **RetNet Surrogate (Ours)** | $0.30 \pm 0.05$ | 84.29% ± 7.16% | 34.33% ± 4.32% | 0.4868 ± 0.0528 | 61.7% | 38.3% |
+| **Standard Transformer** | $0.35 \pm 0.06$ | 84.76% ± 6.14% | 45.05% ± 4.56% | 0.5851 ± 0.0330 | 47.3% | 52.7% |
+| **RetNet Surrogate (Ours)** | $0.30 \pm 0.05$ | 85.24% ± 6.09% | 40.92% ± 4.29% | 0.5518 ± 0.0357 | 52.3% | 47.7% |
 
 - **What to Say:**
   > *"In collision assessment, a symmetric 0.5 threshold is dangerous because missing a collision is catastrophic. We tuned operating thresholds on the inner validation set targeting $\ge 90\%$ recall. On out-of-fold test evaluation, models achieved $\approx 84\%\text{--}88\%$ recall (with Random Forest reaching 92.4%).

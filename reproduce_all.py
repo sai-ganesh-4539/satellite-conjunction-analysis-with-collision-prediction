@@ -4,16 +4,19 @@ reproduce_all.py — End-to-End Master Verification & Artifact Packaging Pipelin
 Executes the complete project reproduction sequence:
   1. Verifies dataset presence and data integrity (MD5 checksums).
   2. Runs pytest unit test suite (packing, shapes, Monte Carlo convergence).
-  3. Executes Monte Carlo vs Surrogate benchmark validation.
-  4. Generates all 6 publication-grade vector figures in figures/.
-  5. Packages all code, figures, benchmarks, and papers into results/SUBMISSION_BUNDLE.zip.
+  3. Executes Monte Carlo vs Surrogate benchmark validation and grouped CV audit.
+  4. Optionally reruns full 5-fold cross-validation suite (--rerun-unified-cv).
+  5. Generates all 6 publication-grade vector figures in figures/.
+  6. Packages all code, figures, benchmarks, and papers into results/SUBMISSION_BUNDLE.zip.
 
 Usage:
   python reproduce_all.py
+  python reproduce_all.py --rerun-unified-cv
 """
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import os
 import subprocess
@@ -63,11 +66,25 @@ def step_2_run_tests():
     print("  [OK] All unit tests passed cleanly (zero NaNs, packing verified).")
 
 
-def step_3_run_benchmark():
+def step_3_run_benchmark(rerun_unified_cv: bool = False):
     print("\n" + "=" * 70)
     print("STEP 3: RUNNING MONTE CARLO & GROUPED CV BENCHMARKS")
     print("=" * 70)
-    # 1. Execute multi-seed grouped cross-validation audit
+
+    # 1. Optionally rerun the full 5-fold cross-validation training suite
+    unified_cv_json = os.path.join(RESULTS_DIR, "benchmark_unified_cv.json")
+    if rerun_unified_cv or not os.path.exists(unified_cv_json):
+        print("  -> Executing full 5-fold cross-validation training suite (src/benchmark_unified_cv.py)...")
+        cmd_ucv = [sys.executable, "src/benchmark_unified_cv.py"]
+        res_ucv = subprocess.run(cmd_ucv, cwd=REPO_ROOT, capture_output=True, text=True)
+        if res_ucv.returncode != 0:
+            print(res_ucv.stderr)
+            raise RuntimeError("Unified CV benchmark failed!")
+        print("  [OK] Unified 5-fold CV benchmark completed successfully.")
+    else:
+        print(f"  [OK] Verified existing unified 5-fold CV benchmark artifact: {unified_cv_json}")
+
+    # 2. Execute multi-seed grouped cross-validation audit
     print("  -> Executing 3-seed 5-fold grouped CV leakage audit (836 events)...")
     cmd_gcv = [sys.executable, "grouped_cv_check.py", "--seeds", "3"]
     res_gcv = subprocess.run(cmd_gcv, cwd=REPO_ROOT, capture_output=True, text=True)
@@ -76,7 +93,7 @@ def step_3_run_benchmark():
         raise RuntimeError("Grouped CV audit failed!")
     print("  [OK] Grouped CV leakage audit completed successfully.")
 
-    # 2. Execute Monte Carlo vs Surrogate benchmark
+    # 3. Execute Monte Carlo vs Surrogate benchmark
     print("  -> Executing Monte Carlo vs. Surrogate benchmark (100 events, 10^6 particles)...")
     cmd = [
         sys.executable, "scripts/benchmark_vs_monte_carlo.py",
@@ -131,6 +148,7 @@ def step_5_package_bundle():
         "src/operational_metrics.py",
         "src/data_processing.py",
         "src/config.py",
+        "src/benchmark_unified_cv.py",
 
         # Executable Scripts & Pipelines
         "run_pipeline.py",
@@ -184,6 +202,13 @@ def step_5_package_bundle():
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Master Reproducibility Pipeline")
+    parser.add_argument(
+        "--rerun-unified-cv", action="store_true",
+        help="Rerun the complete 5-fold cross-validation training pipeline from scratch (generates results/benchmark_unified_cv.json)"
+    )
+    args = parser.parse_args()
+
     t_start = time.perf_counter()
     print("=" * 80)
     print("STARTING COMPLETE MASTER REPRODUCIBILITY PIPELINE")
@@ -191,7 +216,7 @@ def main():
 
     step_1_verify_data()
     step_2_run_tests()
-    step_3_run_benchmark()
+    step_3_run_benchmark(rerun_unified_cv=args.rerun_unified_cv)
     step_4_generate_figures()
     step_5_package_bundle()
 

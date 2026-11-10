@@ -85,7 +85,7 @@ Features at each observation step include:
 - **HistGradientBoosting:** Histogram-based gradient boosting trees with balanced sample weighting.
 
 ### 3.3 Deep Sequence Models
-- **Standard Transformer:** 3-layer Transformer encoder with causal multi-head self-attention (4 heads, $d_{\text{model}} = 64, d_{\text{ff}} = 256$, dropout = 0.1, 155,201 parameters). Padded tokens are gathered to the end via `pack_real_first`.
+- **Standard Transformer:** 3-layer Transformer encoder (`TransformerBaseline`) with strict causal multi-head self-attention (4 heads, $d_{\text{model}} = 64, d_{\text{ff}} = 256$, dropout = 0.1, 155,201 parameters). Sequences are dynamically structured via `pack_real_first` so that valid observations occupy positions $0 \le t < k$ and padding sits strictly at the end. Attention weights are constrained by an upper-triangular causal mask via `torch.nn.Transformer.generate_square_subsequent_mask(T)` with `is_causal=True`, ensuring $A_{i, j} = 0$ for all $j > i$. Over the observed historical prefix window $\mathcal{S}_k = \{\mathbf{x}_1, \dots, \mathbf{x}_k\}$, historical CDMs are past physical telemetry tracks received chronologically leading up to TCA. Applying a causal encoder over this observed prefix evaluates temporal trajectory convergence up to the decision epoch $k$ without leaking future unobserved CDMs ($t > k$). The pooled representation at the last observed step $k$ (`masked_pool(..., pooling="last")`) maps to the binary collision risk triage classification at TCA.
 - **RetNet Surrogate:** 3-layer Retentive Network using Sun et al. (2023) multi-scale matrix retention with decay parameters $\gamma \in \{0.90, 0.95, 0.98, 0.99\}$, SwiGLU feed-forward networks, and $d_{\text{model}} = 64$ (104,801 parameters). RetNet supports both parallel batch training and recurrent single-step inference ($S_t = \gamma S_{t-1} + K_t^T V_t$).
 
 ---
@@ -97,14 +97,14 @@ Features at each observation step include:
 
 | Model Category | Model Architecture | AUC-ROC | PR-AUC (Average Precision) | Accuracy ($\tau=0.5$) | F1-Score ($\tau=0.5$) | Brier Score ($\downarrow$) | ECE ($\downarrow$) | Measured Latency (Batch=1) |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Classical Physics** | **Monte Carlo ($10^6$ sims, 2D B-Plane)** | Reference | Reference | N/A | N/A | N/A | N/A | 47.8 ms (Local CPU) / 3,000–5,000 ms (3D Prop) |
+| **Classical Physics** | **Monte Carlo ($10^6$ sims, 2D B-Plane)** | Reference | Reference | N/A | N/A | N/A | N/A | 41.95 ms (Measured 2D MC) / ~3,000 ms (Literature 3D Prop) |
 | **Naive Baseline** | **Majority Class** | 0.5000 ± 0.0000 | 0.2512 ± 0.0006 | 0.7488 ± 0.0006 | 0.0000 ± 0.0000 | 0.1881 ± 0.0003 | 0.0003 ± 0.0006 | < 0.05 ms |
 | **Stochastic Model** | **Markov Chain (MC)** | 0.5777 ± 0.0197 | 0.2849 ± 0.0091 | 0.7488 ± 0.0006 | 0.0000 ± 0.0000 | 0.1830 ± 0.0028 | 0.0179 ± 0.0118 | < 0.10 ms |
 | **Statistical Model** | **Autoregressive / ARIMA** | 0.7838 ± 0.0481 | 0.6351 ± 0.0828 | 0.7308 ± 0.0384 | 0.5750 ± 0.0544 | 0.1835 ± 0.0242 | 0.1917 ± 0.0335 | < 0.15 ms |
 | **Linear Tabular** | **Logistic Regression** | 0.8424 ± 0.0299 | 0.6700 ± 0.0653 | 0.7727 ± 0.0436 | 0.6107 ± 0.0396 | 0.1602 ± 0.0289 | 0.1449 ± 0.0377 | 0.16 ms |
 | **Tree Ensemble** | **Random Forest (200 trees)** | 0.9050 ± 0.0357 | 0.7957 ± 0.0684 | 0.8361 ± 0.0401 | 0.6815 ± 0.0617 | 0.1119 ± 0.0198 | 0.1054 ± 0.0235 | 7.77 ms |
 | **Gradient Boosting**| **HistGradientBoosting** | **0.9086 ± 0.0226** | **0.8121 ± 0.0439** | **0.8744 ± 0.0296** | **0.7361 ± 0.0714** | **0.1028 ± 0.0203** | **0.0950 ± 0.0160** | 1.56 ms |
-| **Deep Sequence** | **Standard Transformer** | 0.8524 ± 0.0264 | 0.6590 ± 0.0476 | 0.7858 ± 0.0531 | 0.6227 ± 0.0471 | 0.1475 ± 0.0152 | 0.1372 ± 0.0210 | 1.39 ms |
+| **Deep Sequence** | **Standard Transformer** | 0.8524 ± 0.0264 | 0.6590 ± 0.0476 | 0.7858 ± 0.0531 | 0.6227 ± 0.0471 | 0.1475 ± 0.0152 | 0.1372 ± 0.0210 | 1.73 ms |
 | **Deep Surrogate** | **RetNet (Proposed)** | 0.8155 ± 0.0362 | 0.6328 ± 0.0455 | 0.7679 ± 0.0414 | 0.5583 ± 0.0749 | 0.1522 ± 0.0187 | 0.0960 ± 0.0228 | 1.21 ms |
 
 ---
@@ -175,13 +175,17 @@ Across the 5 outer test folds:
 - **RetNet's Trade-Off:** While RetNet has lower discrimination on sparse short tracks ($0.8155$ vs $0.8524$), it retains 32.6% fewer parameters (104,801 vs 155,201) and constant $O(1)$ memory, making it well-suited for streaming edge hardware on flight avionics.
 
 ### 6.2 Latency and Computational Complexity
-Measured median CPU latencies at batch size 1 are:
-- RetNet Recurrent: $1.206\text{ ms}$
+Measured median single-encounter CPU latencies at batch size 1 are:
+- RetNet Recurrent (O(1) step): $1.210\text{ ms}$ (Parallel $L=14$: $5.728\text{ ms}$)
 - HistGradientBoosting: $1.557\text{ ms}$
-- Standard Transformer: $1.388\text{ ms}$
-- Random Forest: $7.772\text{ ms}$
+- Standard Transformer: $1.728\text{ ms}$
+- Random Forest (100 trees): $7.772\text{ ms}$
+- Logistic Regression: $0.156\text{ ms}$
+- 2D B-Plane Monte Carlo ($10^6$ particles): $41.948\text{ ms}$ median ($43.609\text{ ms}$ mean across 100 encounters)
+- 3D Numerical Orbit Propagation: $\sim 3,000\text{ ms}$ (external literature estimate; not measured in this project)
 
-The $0.3\text{--}0.5\text{ ms}$ difference between RetNet, HistGB, and Transformer is within framework overhead. For short sequences ($L \le 14$), quadratic attention costs only $14^2 = 196$ dot products per head, so $O(L^2)$ attention is not an operational bottleneck at this scale.
+**Measurement Protocol:**
+All latency microbenchmarks were executed on a dedicated single CPU core (x86_64), batch size 1, across 100 repetitions following 10 warmup iterations. Disk I/O, SATCAT cross-referencing, and batch data loading were strictly excluded from the timing loop. The 1.728 ms Transformer latency reflects this isolated microbenchmark; in end-to-end pipeline inference, Transformer execution measured 1.251 ms and RetNet measured 1.098 ms. Both establish sub-2 ms CPU inference, delivering a verified $\approx 35\times\text{--}38\times$ speedup over 2D B-plane Monte Carlo quadrature and an estimated $>2,500\times$ acceleration over 3D numerical orbit propagation.
 
 ### 6.3 Limitations & Boundary Conditions
 1. **Absence of Full B-Plane Covariance in Public CDMs:** Space-Track public CDMs omit the full 2x2 B-plane covariance matrix. To establish a standardized numerical baseline, an isotropic scale $\sigma$ was calibrated against catalog $P_c$. In 71% of high-risk encounters, achieving the catalog $P_c$ within an isotropic Gaussian required inflating the hard-body radius beyond physical dimensions (median inflation $3.8\times$), reflecting the physical reality that real-world encounters feature highly elongated, anisotropic covariances along the orbit track. Consequently, Monte Carlo simulations in this pipeline serve as numerical integration sampling verification of the calibrated Gaussian, not independent orbit determination.

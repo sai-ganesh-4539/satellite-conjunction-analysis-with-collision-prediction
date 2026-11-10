@@ -219,7 +219,7 @@ To ensure scientific integrity, computational comparisons must compare equivalen
 
 1. **2D B-Plane Vectorized Monte Carlo Sampling ($10^6$ particles):**
    - Implemented in NumPy vectorized Cholesky sampling.
-   - Measured wall-clock latency: **$47.85\text{ ms}$** median ($50.43\text{ ms}$ mean).
+   - Measured wall-clock latency: **$41.95\text{ ms}$** median ($43.61\text{ ms}$ mean).
    - RetNet inference latency: **$3.25\text{ ms}$**.
    - **Empirical speedup over 2D B-plane MC: $\approx 15\times\text{--}40\times$ faster**.
 
