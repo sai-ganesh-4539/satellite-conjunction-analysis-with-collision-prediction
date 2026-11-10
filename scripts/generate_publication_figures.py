@@ -397,12 +397,15 @@ def fig5_pareto_latency():
     speedup_ret = lat_mc / latencies["RetNet Recurrent O(1) step"]["median"]
     speedup_trans = lat_mc / latencies["Transformer Baseline"]["median"]
     speedup_hgb = lat_mc / latencies["HistGradientBoosting"]["median"]
+    ret_lat_disp = latencies["RetNet Recurrent O(1) step"]["median"]
+    trans_lat_disp = latencies["Transformer Baseline"]["median"]
+    hgb_lat_disp = latencies["HistGradientBoosting"]["median"]
 
     ax2.annotate(
-        "Empirical Speedup vs. 2D Monte Carlo (44.62 ms):\n"
-        f"• RetNet Recurrent: {speedup_ret:.1f}\u00d7 faster (0.66 ms)\n"
-        f"• Transformer:      {speedup_trans:.1f}\u00d7 faster (0.89 ms)\n"
-        f"• HistGB:           {speedup_hgb:.1f}\u00d7 faster (1.29 ms)\n"
+        f"Empirical Speedup vs. 2D Monte Carlo ({lat_mc:.2f} ms):\n"
+        f"• RetNet Recurrent: {speedup_ret:.1f}\u00d7 faster ({ret_lat_disp:.2f} ms)\n"
+        f"• Transformer:      {speedup_trans:.1f}\u00d7 faster ({trans_lat_disp:.2f} ms)\n"
+        f"• HistGB:           {speedup_hgb:.1f}\u00d7 faster ({hgb_lat_disp:.2f} ms)\n"
         "All measurements strictly standardized on single-core CPU\n"
         "(10 warmup, 100 repeats, batch size 1).",
         xy=(0.04, 0.10), xycoords="axes fraction",
@@ -470,8 +473,8 @@ def fig6_monte_carlo_correlation():
     ax2.scatter(log_mc, log_ret, color="#c62828", alpha=0.5, marker="^", s=35, label="RetNet")
     ax2.plot([min_val, max_val], [min_val, max_val], "k--", alpha=0.6, label="y = x")
 
-    lat_mc_val = float(bench_data.get("latency_ms", {}).get("MonteCarlo_ms_median", 44.62))
-    ret_lat = float(bench_data.get("latency_ms", {}).get("RetNet_ms", 0.66))
+    lat_mc_val = float(bench_data.get("latency_ms", {}).get("MonteCarlo_ms_median", 45.28))
+    ret_lat = float(bench_data.get("latency_ms", {}).get("RetNet_ms", 0.57))
     ret_speedup = float(bench_data.get("latency_ms", {}).get("RetNet_speedup_vs_mc", lat_mc_val / ret_lat))
 
     ax2.annotate(

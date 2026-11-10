@@ -20,12 +20,12 @@ Every discrepancy identified in the independent review has been verified, mathem
 | :--- | :--- | :--- | :---: |
 | **1. Bundle Reproducibility** | Extracted bundle failed with `ModuleNotFoundError: run_pipeline`; missing scripts, requirements, datasets | `FocalLoss` moved to `src/model.py`. Package list updated to 46 files including `requirements.txt`, `DATASET_RETRIEVAL.md`, raw CSVs, `benchmark_unified_cv.py`, and all scripts. Clean temp dir extraction verified: **34/34 tests pass (0 errors)**. | **RESOLVED (PASS)** |
 | **2. Grouped CV Discrepancies** | Paper reported 0.777/0.802/0.823/0.954; benchmark JSON reported 0.705/0.721/0.779/0.891 | Disclosed that two protocols existed (836 events, 3 seeds, 58 features vs. 641 prefix events, 1 seed, 71 features). Exported `results/grouped_cv_leakage_audit.json` with all 15 fold-level scores. Synchronized `monte_carlo_vs_surrogate_benchmark.json` to embed the verified 3-seed protocol. | **RESOLVED (PASS)** |
-| **3. Statistical Claims & t-Tests** | Divergent $t$-test values across drafts; invalid Clopper-Pearson nesting claim; invalid p-values on overlapping folds | Unified 5-fold CV rerun with exact causal mask: RetNet AUC $0.7506 \pm 0.0484$, Transformer AUC $0.8307 \pm 0.0369$, HistGB $0.9086 \pm 0.0226$. Eliminated inferential p-values due to 75% fold training overlap violating sample independence (Dietterich, 1998). Preserved descriptive fold differences: Transformer minus RetNet $+0.0801 \pm 0.0458$ AUC, HistGB minus RetNet $+0.1580 \pm 0.0435$ AUC. Added unit test proving Wilson upper bound can exceed Clopper-Pearson at zero hits. | **RESOLVED (PASS)** |
+| **3. Statistical Claims & t-Tests** | Divergent $t$-test values across drafts; invalid Clopper-Pearson nesting claim; invalid p-values on overlapping folds | Unified 5-fold CV rerun with exact causal mask: RetNet AUC $0.7506 \pm 0.0484$, Transformer AUC $0.8307 \pm 0.0369$, HistGB $0.9086 \pm 0.0226$. Eliminated inferential p-values due to 75% fold training overlap violating sample independence (Dietterich, 1998). Preserved descriptive fold differences: Transformer minus RetNet $+0.0801 \pm 0.0457$ AUC, HistGB minus RetNet $+0.1580 \pm 0.0436$ AUC (sample std with $N-1=4$, $\text{ddof}=1$; pop $\sigma = 0.0409$ and $0.0390$). Added unit test proving Wilson upper bound can exceed Clopper-Pearson at zero hits. | **RESOLVED (PASS)** |
 | **4. Benchmark Reporting & Monte Carlo** | Misleading ~0.94 $R^2$ claim in audit; fabricated $R^2 = 0.942$ in Fig 6; negative/near-zero continuous $P_c$ $R^2$ | Clarified that 93% refers to numerical quadrature inside Wilson 95% CI. Removed fake $R^2 \approx 0.94$. Refactored Fig 6 to plot real benchmark points from JSON. Clearly separated classification ($0.9086$ AUC) from underconstrained continuous $P_c$ regression. | **RESOLVED (PASS)** |
 | **5. CAM Operational Language** | Conflicting CAM formulas; hardcoded 0.025 m/s burn; inappropriate "operational flight software" claims | Removed all operational flight claims; relabeled as research demonstration. Refactored `orbit_guard.py` to use linearized Clohessy-Wiltshire secular formula $\Delta v = \text{gap} / (3 t)$. Eliminated hardcoded standby burn. Documented simplified assumptions. | **RESOLVED (PASS)** |
 | **6. Figure 1 & Figure 2 Empirical Rigor** | Fig 1 used parametric formulas for ROC/PR; Fig 2 used manual accuracy offsets | Reran canonical unified CV saving full empirical out-of-fold curves and 10-bin calibration statistics into `results/benchmark_unified_cv.json`. Fig 1 and Fig 2 load and plot 100% empirical data; zero parametric or offset math. | **RESOLVED (PASS)** |
-| **7. Figure 5 Scientific Redesign** | Artificial AUC = 0.999 assigned to Monte Carlo; 3D propagation runtime claim (~3,000 ms) | Removed artificial AUC assignments. Removed 3D propagation bar entirely; panel (b) now compares measured ML surrogates against measured 2D B-plane Monte Carlo ($44.62\text{ ms}$). Replaced flight claims with "Sub-2 ms Inference Regime". | **RESOLVED (PASS)** |
-| **8. Latency Harmonization & Speedups** | Latency discrepancies across JSON files and docs; unsubstantiated >2,500× speedup | Standardized single-core CPU protocol (10 warmup, 100 repeats, batch size 1). Harmonized all JSONs and docs: RetNet Recurrent $0.663\text{ ms}$, Transformer $0.886\text{ ms}$, HistGB $1.286\text{ ms}$, 2D MC $44.619\text{ ms}$. Speedup vs 2D MC: RetNet $67.3\times$, Transformer $50.3\times$, HistGB $34.7\times$. Removed unverified 3D runtime and >2,500× claims. | **RESOLVED (PASS)** |
+| **7. Figure 5 Scientific Redesign** | Artificial AUC = 0.999 assigned to Monte Carlo; 3D propagation runtime claim (~3,000 ms) | Removed artificial AUC assignments. Removed 3D propagation bar entirely; panel (b) now compares measured ML surrogates against measured 2D B-plane Monte Carlo ($45.28\text{ ms}$). Replaced flight claims with "Sub-2 ms Inference Regime". | **RESOLVED (PASS)** |
+| **8. Latency Harmonization & Speedups** | Latency discrepancies across JSON files and docs; unsubstantiated >2,500× speedup | Standardized single-core CPU protocol (10 warmup, 100 repeats, batch size 1). Harmonized all JSONs and docs: RetNet Recurrent $0.566\text{ ms}$, Transformer $0.776\text{ ms}$, HistGB $1.095\text{ ms}$, Random Forest $11.194\text{ ms}$, LogReg $0.094\text{ ms}$, 2D MC $45.283\text{ ms}$. Speedup vs 2D MC: RetNet $80.0\times$, Transformer $58.3\times$, HistGB $41.3\times$, LogReg $482.5\times$, Random Forest $4.0\times$. Removed unverified 3D runtime and >2,500× claims. | **RESOLVED (PASS)** |
 | **9. Transformer Architecture** | Clarification on causal masking and encoder prefix appropriateness | Documented `TransformerBaseline.forward()` causal attention: `pack_real_first`, `generate_square_subsequent_mask(T)`, `is_causal=True`. Justified causal encoder over observed prefix window $\mathcal{S}_k = \{\mathbf{x}_1, \dots, \mathbf{x}_k\}$ without future lookahead leakage. | **RESOLVED (PASS)** |
 | **10. Unified CV Reproducibility** | Missing script provenance for `benchmark_unified_cv.json` | Updated `src/benchmark_unified_cv.py` to write `results/benchmark_unified_cv.json` directly. Added script to `reproduce_all.py` bundle packaging and added optional `--rerun-unified-cv` flag. | **RESOLVED (PASS)** |
 
@@ -50,8 +50,8 @@ Every discrepancy identified in the independent review has been verified, mathem
   - Logistic Regression: $\text{AUC} = 0.8424 \pm 0.0299$, $\text{PR-AUC} = 0.6700 \pm 0.0653$
   - Standard Transformer: $\text{AUC} = 0.8307 \pm 0.0369$, $\text{PR-AUC} = 0.6440 \pm 0.0633$
   - RetNet Surrogate: $\text{AUC} = 0.7506 \pm 0.0484$, $\text{PR-AUC} = 0.5349 \pm 0.0722$
-  - Descriptive fold difference (Transformer minus RetNet): $+0.0801 \pm 0.0458$ AUC.
-  - Descriptive fold difference (HistGB minus RetNet): $+0.1580 \pm 0.0435$ AUC.
+  - Descriptive fold difference (Transformer minus RetNet): $+0.0801 \pm 0.0457$ AUC (sample std, $N-1=4$; pop $\sigma = 0.0409$).
+  - Descriptive fold difference (HistGB minus RetNet): $+0.1580 \pm 0.0436$ AUC (sample std, $N-1=4$; pop $\sigma = 0.0390$).
 - **Dietterich (1998) Qualification & P-Value Removal:** Inferential $p$-values are strictly omitted because $k$-fold cross-validation violates sample independence due to overlapping training sets (Dietterich, 1998). Differences are presented strictly as descriptive fold differences.
 - **Grouped CV Scope Disclosure:** Explicitly disclosed that the connected-component grouped cross-validation audit evaluated tabular models only, and that deep sequence architectures have not been evaluated for unseen-satellite generalization.
 - **Clopper-Pearson vs. Wilson:** Documented that Clopper-Pearson is conservative, but at boundary limits ($k=0$ or $k=n$), the Wilson upper bound can slightly exceed Clopper-Pearson. Verified via unit test in `tests/test_mathematical_validation.py`.
@@ -74,24 +74,24 @@ Every discrepancy identified in the independent review has been verified, mathem
 ### 2.7 Issue 7: Figure 5 Scientific Redesign
 - Excised artificial AUC = 0.999 assignments to physical numerical integrators.
 - Removed the 3D propagation bar entirely from panel (b); panel (b) now presents a clean comparison of measured single-core execution latencies:
-  - Logistic Regression: 0.115 ms
-  - RetNet Recurrent: 0.663 ms
-  - Standard Transformer: 0.886 ms
-  - RetNet Parallel: 1.051 ms
-  - HistGradientBoosting: 1.286 ms
-  - Random Forest (200 trees): 11.018 ms
-  - 2D B-Plane Monte Carlo ($10^6$ particles): 44.619 ms (Measured)
+  - Logistic Regression: 0.094 ms (0.09385 ms)
+  - RetNet Recurrent: 0.566 ms (0.57 ms)
+  - Standard Transformer: 0.776 ms (0.78 ms)
+  - RetNet Parallel: 0.847 ms (0.85 ms)
+  - HistGradientBoosting: 1.095 ms (1.10 ms)
+  - Random Forest (200 trees): 11.194 ms (11.19 ms)
+  - 2D B-Plane Monte Carlo ($10^6$ particles): 45.283 ms (45.28 ms, Measured)
 - Replaced "Flight Avionics Feasibility Envelope" with "Sub-2 ms Inference Regime".
 
 ### 2.8 Issue 8: Latency Harmonization & Speedup Clarification
 - **Canonical Measurement Protocol:** All latencies measured on a dedicated single CPU core (x86_64), batch size 1, across 100 repetitions following 10 warmup iterations, excluding disk I/O and SATCAT merging.
 - **Harmonized Canonical Latencies:**
   - `results/empirical_latency_benchmark.json`, `results/benchmark_unified_cv.json`, and `results/monte_carlo_vs_surrogate_benchmark.json` match identically.
-- **Speedup over 2D B-Plane Monte Carlo ($44.62\text{ ms}$):**
-  - RetNet Recurrent: **$67.3\times$ faster**
-  - Standard Transformer: **$50.3\times$ faster**
-  - HistGradientBoosting: **$34.7\times$ faster**
-  - Logistic Regression: **$389.0\times$ faster**
+- **Speedup over 2D B-Plane Monte Carlo ($45.28\text{ ms}$):**
+  - RetNet Recurrent: **$80.0\times$ faster**
+  - Standard Transformer: **$58.3\times$ faster**
+  - HistGradientBoosting: **$41.3\times$ faster**
+  - Logistic Regression: **$482.5\times$ faster**
   - Random Forest: **$4.0\times$ faster**
 - **Removal of 3D Orbit Propagation Runtime (~3,000 ms) and >2,500× Speedup:**
   - Foster (1992) NASA JSC-25898 derived the 2D B-plane analytical probability integral, NOT numerical runtime.

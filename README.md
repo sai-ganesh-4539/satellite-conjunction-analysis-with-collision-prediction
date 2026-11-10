@@ -86,20 +86,20 @@ Evaluated across 836 real orbital encounters under a unified 5-fold cross-valida
 
 | Model Category | Model Architecture | ROC-AUC | PR-AUC (Average Precision) | Accuracy ($\tau=0.5$) | F1-Score ($\tau=0.5$) | Brier Score ($\downarrow$) | ECE ($\downarrow$) | Measured Latency (Single-Core CPU) |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Classical Physics** | **Monte Carlo ($10^6$ particles)** | Reference | Reference | N/A | N/A | N/A | N/A | 44.62 ms (Measured) |
+| **Classical Physics** | **Monte Carlo ($10^6$ particles)** | Reference | Reference | N/A | N/A | N/A | N/A | 45.28 ms (Measured) |
 | **Naive Baseline** | Majority Class | $0.5000 \pm 0.0000$ | $0.2512 \pm 0.0006$ | $0.7488 \pm 0.0006$ | $0.0000 \pm 0.0000$ | $0.1881$ | $0.0003$ | $< 0.05\text{ ms}$ |
 | **Stochastic** | Markov Chain (MC) | $0.5777 \pm 0.0197$ | $0.2849 \pm 0.0091$ | $0.7488 \pm 0.0006$ | $0.0000 \pm 0.0000$ | $0.1830$ | $\mathbf{0.0179}$ | $< 0.10\text{ ms}$ |
 | **Statistical** | ARIMA / Autoregressive | $0.7838 \pm 0.0481$ | $0.6351 \pm 0.0828$ | $0.7308 \pm 0.0384$ | $0.5750 \pm 0.0544$ | $0.1835$ | $0.1917$ | $< 0.15\text{ ms}$ |
-| **Linear Tabular** | Logistic Regression (L2) | $0.8424 \pm 0.0299$ | $0.6700 \pm 0.0653$ | $0.7727 \pm 0.0436$ | $0.6107 \pm 0.0396$ | $0.1602$ | $0.1449$ | $\mathbf{0.115\text{ ms}}$ |
-| **Tree Ensemble** | Random Forest (200 trees) | $0.9050 \pm 0.0357$ | $0.7957 \pm 0.0684$ | $0.8361 \pm 0.0401$ | $0.6815 \pm 0.0617$ | $0.1119$ | $0.1054$ | $11.018\text{ ms}$ |
-| **Gradient Boost** | **HistGradientBoosting** | $\mathbf{0.9086 \pm 0.0226}$ | $\mathbf{0.8121 \pm 0.0439}$ | $\mathbf{0.8744 \pm 0.0296}$ | $\mathbf{0.7361 \pm 0.0714}$ | $\mathbf{0.1028}$ | $0.0950$ | $1.286\text{ ms}$ |
-| **Deep Sequence** | Standard Transformer | $0.8307 \pm 0.0369$ | $0.6440 \pm 0.0633$ | $0.7655 \pm 0.0499$ | $0.6091 \pm 0.0536$ | $0.1586$ | $0.1444$ | $0.886\text{ ms}$ |
-| **Deep Surrogate** | RetNet (Proposed) | $0.7506 \pm 0.0484$ | $0.5349 \pm 0.0722$ | $0.7308 \pm 0.0251$ | $0.5114 \pm 0.0458$ | $0.1819$ | $0.1466$ | $\mathbf{0.663\text{ ms}}$ (Recurrent) |
+| **Linear Tabular** | Logistic Regression (L2) | $0.8424 \pm 0.0299$ | $0.6700 \pm 0.0653$ | $0.7727 \pm 0.0436$ | $0.6107 \pm 0.0396$ | $0.1602$ | $0.1449$ | $\mathbf{0.094\text{ ms}}$ |
+| **Tree Ensemble** | Random Forest (200 trees) | $0.9050 \pm 0.0357$ | $0.7957 \pm 0.0684$ | $0.8361 \pm 0.0401$ | $0.6815 \pm 0.0617$ | $0.1119$ | $0.1054$ | $11.19\text{ ms}$ |
+| **Gradient Boost** | **HistGradientBoosting** | $\mathbf{0.9086 \pm 0.0226}$ | $\mathbf{0.8121 \pm 0.0439}$ | $\mathbf{0.8744 \pm 0.0296}$ | $\mathbf{0.7361 \pm 0.0714}$ | $\mathbf{0.1028}$ | $0.0950$ | $1.10\text{ ms}$ |
+| **Deep Sequence** | Standard Transformer | $0.8307 \pm 0.0369$ | $0.6440 \pm 0.0633$ | $0.7655 \pm 0.0499$ | $0.6091 \pm 0.0536$ | $0.1586$ | $0.1444$ | $0.78\text{ ms}$ |
+| **Deep Surrogate** | RetNet (Proposed) | $0.7506 \pm 0.0484$ | $0.5349 \pm 0.0722$ | $0.7308 \pm 0.0251$ | $0.5114 \pm 0.0458$ | $0.1819$ | $0.1466$ | $\mathbf{0.57\text{ ms}}$ (Recurrent) |
 
 ### Key Benchmark Insights
 1. **Tree Ensembles Lead on Sparse Sequences:** 59.5% of satellite encounters have $\le 3$ updates. Tabular gradient boosting on 71 summary statistics achieves the highest discrimination ($0.9086$ AUC), screening out $65.4\%$ of non-critical events at an operating recall of $84.3\%$.
-2. **Transformer vs. RetNet Comparison:** Across the 5 outer test folds, the Transformer achieves higher discrimination ($0.8307 \pm 0.0369$ vs. $0.7506 \pm 0.0484$ AUC; descriptive mean fold difference $+0.0801 \pm 0.0458$ AUC), reflecting the advantage of softmax attention over unnormalized linear retention on sparse update tracks. Inferential p-values from paired t-tests are intentionally omitted because 5-fold cross-validation involves 75% training set overlap between folds, violating the sample independence assumption required for valid hypothesis testing (Dietterich, 1998).
-3. **Execution Speed & Speedup:** RetNet executes recurrently in $0.663\text{ ms}$ on CPU with $O(1)$ memory. Compared to the measured 2D B-plane Monte Carlo engine ($44.62\text{ ms}$ for $10^6$ particles), RetNet is **$67.3\times$ faster**, Transformer is **$50.3\times$ faster**, and HistGradientBoosting is **$34.7\times$ faster**.
+2. **Transformer vs. RetNet Comparison:** Across the 5 outer test folds, the Transformer achieves higher discrimination ($0.8307 \pm 0.0369$ vs. $0.7506 \pm 0.0484$ AUC; descriptive mean fold difference $+0.0801 \pm 0.0457$ AUC, reported as mean $\pm$ sample standard deviation with $N-1=4$, $\text{ddof}=1$; population $\sigma = 0.0409$), reflecting the advantage of softmax attention over unnormalized linear retention on sparse update tracks. Inferential p-values from paired t-tests are intentionally omitted because 5-fold cross-validation involves 75% training set overlap between folds, violating the sample independence assumption required for valid hypothesis testing (Dietterich, 1998).
+3. **Execution Speed & Speedup:** RetNet executes recurrently in $0.57\text{ ms}$ ($0.566\text{ ms}$) on single-core CPU with $O(1)$ memory. Compared to the measured 2D B-plane Monte Carlo engine ($45.28\text{ ms}$ for $10^6$ particles), RetNet is **$80.0\times$ faster**, Transformer is **$58.3\times$ faster** ($0.78\text{ ms}$), HistGradientBoosting is **$41.3\times$ faster** ($1.10\text{ ms}$), and Logistic Regression is **$482.5\times$ faster** ($0.094\text{ ms}$).
 
 ---
 
@@ -197,9 +197,9 @@ NUMERICAL MONTE CARLO INTEGRATION BENCHMARK (1,000,000 B-Plane Particles)...
   [NOTE: Sampling verification of 2D isotropic Gaussian integral; not independent orbit determination]
   * Monte Carlo Collision Prob: 2.3799e-02 (Hits: 23,799 / 1,000,000)
   * 95% Wilson Confidence Band: [2.3502e-02, 2.4100e-02]
-  * 2D Monte Carlo Timing:      44.62 ms (median, 1,000,000 samples; mean 44.69 ms)
-  * RetNet Inference Latency:   0.66 ms (recurrent O(1) step)
-  * Speedup vs 2D B-Plane MC:   67.3x faster (0.66 ms vs 44.62 ms)
+  * 2D Monte Carlo Timing:      45.28 ms (median, 1,000,000 samples; mean 45.25 ms)
+  * RetNet Inference Latency:   0.57 ms (recurrent O(1) step)
+  * Speedup vs 2D B-Plane MC:   80.0x faster (0.57 ms vs 45.28 ms)
 
 ================================================================================
 CONJUNCTION ASSESSMENT ADVISORY (DEMONSTRATION HEURISTIC):
@@ -265,7 +265,7 @@ python -m pytest tests/
 
 1. **Isotropic Covariance Calibration:** Public Space-Track CDMs omit 2x2 B-plane covariance matrices. An isotropic scale $\sigma$ was solved to match catalog $P_c$. Because real-world orbital encounters feature highly elongated, anisotropic covariances along the orbit track, 71% of high-risk cases required inflating the hard-body radius to match catalog $P_c$. Monte Carlo simulations here verify the **numerical sampling fidelity of the analytical integral**, not an independent physical orbit determination.
 2. **Illustrative CAM Heuristic Disclaimer:** The Collision Avoidance Maneuver (CAM) $\Delta v$ is calculated from linearized along-track Clohessy-Wiltshire secular drift. It is strictly an **illustrative demonstration heuristic**. Real flight operations require full 6-DOF numerical ephemeris propagation with high-order gravity ($J_{70,70}$), atmospheric drag variations, attitude slew constraints, and mandatory catalog-wide secondary conjunction screening.
-3. **Speedup Comparison Specifics:** RetNet recurrent inference takes $0.663\text{ ms}$ (and Transformer $0.886\text{ ms}$). This represents a $67.3\times$ speedup (and $50.3\times$ for Transformer) over measured 2D B-plane Monte Carlo sampling ($44.62\text{ ms}$ median, $44.69\text{ ms}$ mean for $10^6$ particles). All latencies were measured on a dedicated single-core CPU, batch size 1, across 100 repetitions after 10 warmups, excluding disk I/O and SATCAT merging.
+3. **Speedup Comparison Specifics:** RetNet recurrent inference takes $0.566\text{ ms}$ (median, $0.57\text{ ms}$, with Transformer at $0.776\text{ ms}$ and HistGB at $1.095\text{ ms}$). This represents an $80.0\times$ speedup (and $58.3\times$ for Transformer, $41.3\times$ for HistGB) over measured 2D B-plane Monte Carlo sampling ($45.283\text{ ms}$ median, $45.247\text{ ms}$ mean for $10^6$ particles). All latencies were measured on a dedicated single-core CPU, batch size 1, across 100 repetitions after 10 warmups, excluding disk I/O and SATCAT merging.
 
 ---
 

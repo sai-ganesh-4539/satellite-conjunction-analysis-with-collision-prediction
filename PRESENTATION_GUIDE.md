@@ -73,9 +73,9 @@
 | **ARIMA / Autoregressive** | Statistical Model | 0.7838 ± 0.0481 | 0.6351 ± 0.0828 | 0.7308 ± 0.0384 | 0.1835 ± 0.0242 | 0.1917 ± 0.0335 | < 0.15 ms |
 | **Logistic Regression** | Linear Tabular | 0.8424 ± 0.0299 | 0.6700 ± 0.0653 | 0.7727 ± 0.0436 | 0.1602 ± 0.0289 | 0.1449 ± 0.0377 | **0.115 ms** |
 | **Random Forest (200 trees)**| Tree Ensemble | 0.9050 ± 0.0357 | 0.7957 ± 0.0684 | 0.8361 ± 0.0401 | 0.1119 ± 0.0198 | 0.1054 ± 0.0235 | 11.018 ms |
-| **HistGradientBoosting** | Gradient Boosting | **0.9086 ± 0.0226** | **0.8121 ± 0.0439** | **0.8744 ± 0.0296** | **0.1028 ± 0.0203** | 0.0950 ± 0.0160 | 1.286 ms |
-| **Standard Transformer** | Deep Sequence | 0.8307 ± 0.0369 | 0.6440 ± 0.0633 | 0.7655 ± 0.0499 | 0.1586 ± 0.0162 | 0.1444 ± 0.0117 | 0.886 ms |
-| **RetNet Surrogate (Ours)**| Deep Surrogate | 0.7506 ± 0.0484 | 0.5349 ± 0.0722 | 0.7308 ± 0.0251 | 0.1819 ± 0.0178 | 0.1466 ± 0.0296 | **0.663 ms** (Recurrent) |
+| **HistGradientBoosting** | Gradient Boosting | **0.9086 ± 0.0226** | **0.8121 ± 0.0439** | **0.8744 ± 0.0296** | **0.7361 ± 0.0714** | **0.1028 ± 0.0203** | 0.0950 ± 0.0160 | 1.10 ms |
+| **Standard Transformer** | Deep Sequence | 0.8307 ± 0.0369 | 0.6440 ± 0.0633 | 0.7655 ± 0.0499 | 0.6091 ± 0.0536 | 0.1586 ± 0.0162 | 0.1444 ± 0.0117 | 0.78 ms |
+| **RetNet Surrogate (Ours)**| Deep Surrogate | 0.7506 ± 0.0484 | 0.5349 ± 0.0722 | 0.7308 ± 0.0251 | 0.5114 ± 0.0458 | 0.1819 ± 0.0178 | 0.1466 ± 0.0296 | **0.57 ms** (Recurrent) |
 
 - **What to Say:**
   > *"Looking at Table 1 across our 5 cross-validation folds, tabular gradient boosting achieves the highest overall discriminative performance at 0.909 AUC and 0.812 Average Precision. The Standard Transformer achieves 0.831 AUC, while RetNet achieves 0.751 AUC (mean fold difference +0.080 AUC). We omit inferential p-values because 5-fold CV has 75% training overlap violating sample independence (Dietterich 1998). The performance gap favors Transformer attention on sparse updates because bounded softmax attention sharpens focus on isolated radar updates compared to unnormalized linear retention."*
@@ -132,11 +132,11 @@
 ### Slide 9: RetNet's Operational Role & Streaming Inference
 - **Why RetNet Still Matters:**
   - Standard Transformers cost $O(L^2)$ memory and cannot stream recurrently without recomputing past keys.
-  - RetNet's multi-scale retention executes recurrently in **$0.663\text{ ms}$ constant time ($O(1)$)** with fixed memory.
-  - RetNet provides a verified **$67.3\times$ speedup** over our measured 2D B-plane Monte Carlo quadrature engine ($44.62\text{ ms}$).
+  - RetNet's multi-scale retention executes recurrently in **$0.566\text{ ms}$ constant time ($O(1)$)** with fixed memory.
+  - RetNet provides a verified **$80.0\times$ speedup** over our measured 2D B-plane Monte Carlo quadrature engine ($45.28\text{ ms}$).
   - In streaming architectures, RetNet processes sequential updates without memory buffers expanding over time.
 - **What to Say:**
-  > *"While Gradient Boosting is the strongest offline triage filter on ground servers, RetNet offers a unique advantage for streaming architectures. RetNet runs in recurrent mode in $0.663\text{ ms}$ with constant $O(1)$ memory, delivering a 67-fold acceleration over 1M-particle 2D Monte Carlo quadrature while avoiding dynamic memory expansion."*
+  > *"While Gradient Boosting is the strongest offline triage filter on ground servers, RetNet offers a unique advantage for streaming architectures. RetNet runs in recurrent mode in $0.57\text{ ms}$ with constant $O(1)$ memory, delivering an 80-fold acceleration over 1M-particle 2D Monte Carlo quadrature while avoiding dynamic memory expansion."*
 
 ---
 
@@ -144,7 +144,7 @@
 - **Summary:**
   1. Gradient Boosting is the most effective operational triage filter on ground catalogs, screening out 65.4% of candidate encounters.
   2. In-catalog encounters benefit from tree ensembles; out-of-catalog unseen satellites require linear or sequence models ($0.823$ AUC) to avoid overfitting static object traits.
-  3. RetNet provides a constant-memory recurrent architecture for streaming updates ($0.663\text{ ms}$).
+  3. RetNet provides a constant-memory recurrent architecture for streaming updates ($0.57\text{ ms}$, $80.0\times$ speedup vs 2D MC).
 - **What to Say:**
   > *"In conclusion, Madam, our work establishes rigorous benchmark baselines for satellite conjunction triage. We show that tabular gradient boosting saves 65% of numerical propagation compute, identify the physical limits of sequence models on sparse radar updates, and demonstrate how RetNet provides constant-memory streaming. Thank you, and I welcome your questions."*
 
@@ -162,7 +162,7 @@
 
 ### Q3: *"Did RetNet beat the Transformer?"*
 **Answer:**
-> *"No, Madam. Under unified 5-fold cross-validation, the Transformer achieves $0.831 \pm 0.037$ AUC while RetNet achieves $0.751 \pm 0.048$ AUC, with a descriptive mean fold difference of $+0.080 \pm 0.046$ AUC (inferential p-values omitted due to overlapping folds per Dietterich 1998). The Transformer's bounded softmax attention allows it to focus sharply on the single critical update where miss distance dropped, whereas linear retention without softmax spreads attention more evenly. However, RetNet has 32.5% fewer parameters and executes recurrently with $O(1)$ constant memory in $0.663\text{ ms}$, delivering a 67.3x speedup over 2D Monte Carlo quadrature."*
+> *"No, Madam. Under unified 5-fold cross-validation, the Transformer achieves $0.831 \pm 0.037$ AUC while RetNet achieves $0.751 \pm 0.048$ AUC, with a descriptive mean fold difference of $+0.0801 \pm 0.0457$ AUC (sample std, $N-1=4$, $\text{ddof}=1$; inferential p-values omitted due to overlapping folds per Dietterich 1998). The Transformer's bounded softmax attention allows it to focus sharply on the single critical update where miss distance dropped, whereas linear retention without softmax spreads attention more evenly. However, RetNet has 32.5% fewer parameters and executes recurrently with $O(1)$ constant memory in $0.566\text{ ms}$ ($0.57\text{ ms}$), delivering an 80.0x speedup over 2D Monte Carlo quadrature ($45.28\text{ ms}$)."*
 
 ### Q4: *"What did your Grouped Cross-Validation audit discover?"*
 **Answer:**

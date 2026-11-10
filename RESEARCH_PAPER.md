@@ -10,11 +10,11 @@
 
 As the catalog of tracked space objects expands, satellite operations face an escalating volume of conjunction warnings. Operational workflows rely on high-fidelity numerical orbit propagation and Monte Carlo covariance sampling to compute collision probabilities ($P_c$), which is computationally intensive and difficult to scale across all pairwise combinations in crowded orbital shells. In this work, we evaluate machine learning triage classifiers to identify high-risk conjunction events ($\max P_c \ge 5 \times 10^{-4}$) directly from sequences of Conjunction Data Messages (CDMs) enriched with orbital physics from the Space-Track Satellite Catalog (SATCAT). 
 
-We benchmark a diverse hierarchy of models under a unified 5-fold cross-validation protocol on 836 conjunction events: naive baselines (Majority Class), classical stochastic and statistical time series models (Markov Chain, Autoregressive/ARIMA), linear regression, tree ensembles (Random Forest, HistGradientBoosting), and deep sequence architectures (Standard Transformer, Retentive Network / RetNet). Tabular gradient boosting achieves the highest discriminative performance ($\text{AUC-ROC} = 0.9086 \pm 0.0226$, $\text{PR-AUC} = 0.8121 \pm 0.0439$). Among sequence models, the causal Standard Transformer achieves $\text{AUC-ROC} = 0.8307 \pm 0.0369$, while RetNet with Sun et al. (2023) multi-scale matrix retention achieves $\text{AUC-ROC} = 0.7506 \pm 0.0484$. Descriptive fold differences across the 5 outer test folds indicate an empirical performance difference favoring softmax attention on sparse sequences ($+0.0801 \pm 0.0458$ mean AUC over RetNet; inferential p-values omitted due to training fold overlap per Dietterich, 1998), with RetNet maintaining constant $O(1)$ recurrent memory and sub-millisecond single-step latency ($0.663\text{ ms}$).
+We benchmark a diverse hierarchy of models under a unified 5-fold cross-validation protocol on 836 conjunction events: naive baselines (Majority Class), classical stochastic and statistical time series models (Markov Chain, Autoregressive/ARIMA), linear regression, tree ensembles (Random Forest, HistGradientBoosting), and deep sequence architectures (Standard Transformer, Retentive Network / RetNet). Tabular gradient boosting achieves the highest discriminative performance ($\text{AUC-ROC} = 0.9086 \pm 0.0226$, $\text{PR-AUC} = 0.8121 \pm 0.0439$). Among sequence models, the causal Standard Transformer achieves $\text{AUC-ROC} = 0.8307 \pm 0.0369$, while RetNet with Sun et al. (2023) multi-scale matrix retention achieves $\text{AUC-ROC} = 0.7506 \pm 0.0484$. Descriptive fold differences across the 5 outer test folds indicate an empirical performance difference favoring softmax attention on sparse sequences ($+0.0801 \pm 0.0457$ mean AUC over RetNet, sample standard deviation with $N-1=4$, $\text{ddof}=1$; population $\sigma = 0.0409$; inferential p-values omitted due to training fold overlap per Dietterich, 1998), with RetNet maintaining constant $O(1)$ recurrent memory and sub-millisecond single-step latency ($0.57\text{ ms}$).
 
 Analysis of sequence length shows that 59.5% of encounters contain only 1 to 3 CDM updates (median length = 3.0), leaving sequence models with limited temporal signal to model. Subgroup experiments demonstrate that while gradient boosting maintains strong performance across both short ($N \le 3, \text{AUC} = 0.8948$) and longer histories ($N \ge 4, \text{AUC} = 0.9254$), deep sequence models remain near $\text{AUC} \approx 0.75\text{--}0.83$. Furthermore, streaming horizon analysis reveals that the primary geometric risk signals are largely resolved by the second observation ($k = 2, \text{AUC} = 0.9293$). At validation-tuned operating thresholds targeting $\ge 90\%$ recall, out-of-fold test recall reached $84.3\%\text{--}92.4\%$ across models. In a triage screening configuration, gradient boosting safely screens out $65.4\%$ of non-critical events, while RetNet screens out $38.3\%$. Furthermore, under strict graph-component cross-validation with zero satellite overlap between train and test, tree models experience an 18-point drop while regularized linear models maintain solid generalization ($\text{AUC} = 0.823 \pm 0.051$), demonstrating that tree models partially rely on static spacecraft identity features. These findings delineate the boundary conditions where tabular and sequence architectures operate effectively in space situational awareness.
 
-Finally, we implement a vectorized 1,000,000-sample B-plane Monte Carlo simulator and evaluate surrogate speedups. We document that public CDMs lack 2x2 B-plane covariance matrices, requiring an isotropic scale calibration against catalog $P_c$ under which 71% of high-risk cases require radius inflation due to real-world along-track covariance elongation; the resulting Monte Carlo simulations serve as numerical sampling verification of analytical quadrature, rather than independent orbit determination. Standardized single-core CPU profiling reveals that RetNet recurrent inference ($0.663\text{ ms}$ median) and Transformer inference ($0.886\text{ ms}$ median) achieve verified $67.3\times$ and $50.3\times$ speedups over 1,000,000-sample 2D B-plane Monte Carlo quadrature ($44.619\text{ ms}$ median, $44.689\text{ ms}$ mean). An illustrative Collision Avoidance Maneuver (CAM) module is provided for demonstration, with explicit flight safety disclaimers.
+Finally, we implement a vectorized 1,000,000-sample B-plane Monte Carlo simulator and evaluate surrogate speedups. We document that public CDMs lack 2x2 B-plane covariance matrices, requiring an isotropic scale calibration against catalog $P_c$ under which 71% of high-risk cases require radius inflation due to real-world along-track covariance elongation; the resulting Monte Carlo simulations serve as numerical sampling verification of analytical quadrature, rather than independent orbit determination. Standardized single-core CPU profiling reveals that RetNet recurrent inference ($0.566\text{ ms}$ median, $0.57\text{ ms}$) and Transformer inference ($0.776\text{ ms}$ median, $0.78\text{ ms}$) achieve verified $80.0\times$ and $58.3\times$ speedups over 1,000,000-sample 2D B-plane Monte Carlo quadrature ($45.283\text{ ms}$ median, $45.247\text{ ms}$ mean), with HistGradientBoosting ($1.095\text{ ms}$) achieving a $41.3\times$ speedup. An illustrative Collision Avoidance Maneuver (CAM) module is provided for demonstration, with explicit flight safety disclaimers.
 
 ---
 
@@ -41,7 +41,7 @@ To address these issues systematically, this paper provides:
 4. **Padding-Insensitive Sequence Modeling:** Sequences are dynamically packed (`pack_real_first`) so that causal attention operates strictly over real physical observations without zero-token padding corruption or mask-induced NaN instabilities. Causal upper-triangular masks strictly prevent future lookahead.
 5. **Multi-Scheme Grouped CV Audit:** We evaluate models under strict graph-component grouping (Union-Find) ensuring zero satellite overlap across splits, revealing that tree models drop from 0.954 to 0.777 while regularized linear models generalize robustly (0.823).
 6. **Streaming Horizon & Subgroup Experiments:** We investigate how model performance evolves across observation steps ($k = 1, 2, 3, 4$) and analyze performance on short ($N \le 3$) versus longer ($N \ge 4$) observation histories.
-7. **Empirically Measured Monte Carlo Speedup:** We measure standardized single-core CPU execution times for all models, documenting that RetNet ($0.66\text{ ms}$) and Transformer ($0.89\text{ ms}$) achieve verified $67.3\times$ and $50.3\times$ speedups over 2D B-plane Monte Carlo quadrature ($44.62\text{ ms}$ for $10^6$ particles).
+7. **Empirically Measured Monte Carlo Speedup:** We measure standardized single-core CPU execution times for all models, documenting that RetNet ($0.57\text{ ms}$) and Transformer ($0.78\text{ ms}$) achieve verified $80.0\times$ and $58.3\times$ speedups over 2D B-plane Monte Carlo quadrature ($45.28\text{ ms}$ for $10^6$ particles), with HistGradientBoosting ($1.10\text{ ms}$) achieving a $41.3\times$ speedup.
 
 ---
 
@@ -98,15 +98,15 @@ Features at each observation step include:
 
 | Model Category | Model Architecture | AUC-ROC | PR-AUC (Average Precision) | Accuracy ($\tau=0.5$) | F1-Score ($\tau=0.5$) | Brier Score ($\downarrow$) | ECE ($\downarrow$) | Measured Latency (Single-Core CPU) |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Classical Physics** | **Monte Carlo ($10^6$ particles, 2D B-Plane)** | Reference | Reference | N/A | N/A | N/A | N/A | 44.62 ms (Measured) |
+| **Classical Physics** | **Monte Carlo ($10^6$ particles, 2D B-Plane)** | Reference | Reference | N/A | N/A | N/A | N/A | 45.28 ms (Measured) |
 | **Naive Baseline** | **Majority Class** | 0.5000 ± 0.0000 | 0.2512 ± 0.0006 | 0.7488 ± 0.0006 | 0.0000 ± 0.0000 | 0.1881 ± 0.0003 | 0.0003 ± 0.0006 | < 0.05 ms |
 | **Stochastic Model** | **Markov Chain (MC)** | 0.5777 ± 0.0197 | 0.2849 ± 0.0091 | 0.7488 ± 0.0006 | 0.0000 ± 0.0000 | 0.1830 ± 0.0028 | 0.0179 ± 0.0118 | < 0.10 ms |
 | **Statistical Model** | **Autoregressive / ARIMA** | 0.7838 ± 0.0481 | 0.6351 ± 0.0828 | 0.7308 ± 0.0384 | 0.5750 ± 0.0544 | 0.1835 ± 0.0242 | 0.1917 ± 0.0335 | < 0.15 ms |
-| **Linear Tabular** | **Logistic Regression** | 0.8424 ± 0.0299 | 0.6700 ± 0.0653 | 0.7727 ± 0.0436 | 0.6107 ± 0.0396 | 0.1602 ± 0.0289 | 0.1449 ± 0.0377 | 0.115 ms |
-| **Tree Ensemble** | **Random Forest (200 trees)** | 0.9050 ± 0.0357 | 0.7957 ± 0.0684 | 0.8361 ± 0.0401 | 0.6815 ± 0.0617 | 0.1119 ± 0.0198 | 0.1054 ± 0.0235 | 11.018 ms |
-| **Gradient Boosting**| **HistGradientBoosting** | **0.9086 ± 0.0226** | **0.8121 ± 0.0439** | **0.8744 ± 0.0296** | **0.7361 ± 0.0714** | **0.1028 ± 0.0203** | **0.0950 ± 0.0160** | 1.286 ms |
-| **Deep Sequence** | **Standard Transformer** | 0.8307 ± 0.0369 | 0.6440 ± 0.0633 | 0.7655 ± 0.0499 | 0.6091 ± 0.0536 | 0.1586 ± 0.0162 | 0.1444 ± 0.0117 | 0.886 ms |
-| **Deep Surrogate** | **RetNet (Proposed)** | 0.7506 ± 0.0484 | 0.5349 ± 0.0722 | 0.7308 ± 0.0251 | 0.5114 ± 0.0458 | 0.1819 ± 0.0178 | 0.1466 ± 0.0296 | **0.663 ms** (Recurrent) |
+| **Linear Tabular** | **Logistic Regression** | 0.8424 ± 0.0299 | 0.6700 ± 0.0653 | 0.7727 ± 0.0436 | 0.6107 ± 0.0396 | 0.1602 ± 0.0289 | 0.1449 ± 0.0377 | 0.094 ms |
+| **Tree Ensemble** | **Random Forest (200 trees)** | 0.9050 ± 0.0357 | 0.7957 ± 0.0684 | 0.8361 ± 0.0401 | 0.6815 ± 0.0617 | 0.1119 ± 0.0198 | 0.1054 ± 0.0235 | 11.19 ms |
+| **Gradient Boosting**| **HistGradientBoosting** | **0.9086 ± 0.0226** | **0.8121 ± 0.0439** | **0.8744 ± 0.0296** | **0.7361 ± 0.0714** | **0.1028 ± 0.0203** | **0.0950 ± 0.0160** | 1.10 ms |
+| **Deep Sequence** | **Standard Transformer** | 0.8307 ± 0.0369 | 0.6440 ± 0.0633 | 0.7655 ± 0.0499 | 0.6091 ± 0.0536 | 0.1586 ± 0.0162 | 0.1444 ± 0.0117 | 0.78 ms |
+| **Deep Surrogate** | **RetNet (Proposed)** | 0.7506 ± 0.0484 | 0.5349 ± 0.0722 | 0.7308 ± 0.0251 | 0.5114 ± 0.0458 | 0.1819 ± 0.0178 | 0.1466 ± 0.0296 | **0.57 ms** (Recurrent) |
 
 ---
 
@@ -169,29 +169,29 @@ We partitioned the 836 encounters into short ($N \le 3$ CDMs) and extended ($N \
 ## 6. Discussion & Limitations
 
 ### 6.1 Model Comparison & Descriptive Fold Differences
-Across the 5 outer test folds:
-- **RetNet vs. Transformer:** The Transformer demonstrates higher mean discrimination ($0.8307 \pm 0.0369$ vs. $0.7506 \pm 0.0484$, descriptive mean fold difference $+0.0801 \pm 0.0458$ AUC). As established by Dietterich (1998), standard paired $t$-tests on $k$-fold cross-validation violate sample independence due to overlapping training sets (each pair of training sets shares 75% of events), which inflates Type I error rates. Consequently, inferential $p$-values are intentionally omitted, and this difference is reported as an empirical descriptive performance gap under the evaluated cross-validation splits.
-- **HistGB vs. RetNet:** Tabular gradient-boosted trees achieve a descriptive mean fold difference of $+0.1580 \pm 0.0435$ AUC over RetNet, confirming that gradient-boosted trees on summary features strongly outperform linear sequence retention on this small-sample regime.
+Across the 5 outer test folds (fold differences reported as mean $\pm$ sample standard deviation with $N-1=4$ degrees of freedom, $\text{ddof}=1$):
+- **RetNet vs. Transformer:** The Transformer demonstrates higher mean discrimination ($0.8307 \pm 0.0369$ vs. $0.7506 \pm 0.0484$, descriptive mean fold difference $+0.0801 \pm 0.0457$ AUC, with population $\sigma = 0.0409$). As established by Dietterich (1998), standard paired $t$-tests on $k$-fold cross-validation violate sample independence due to overlapping training sets (each pair of training sets shares 75% of events), which inflates Type I error rates. Consequently, inferential $p$-values are intentionally omitted, and this difference is reported as an empirical descriptive performance gap under the evaluated cross-validation splits.
+- **HistGB vs. RetNet:** Tabular gradient-boosted trees achieve a descriptive mean fold difference of $+0.1580 \pm 0.0436$ AUC over RetNet (with population $\sigma = 0.0390$), confirming that gradient-boosted trees on summary features strongly outperform linear sequence retention on this small-sample regime.
 - **Why Softmax Attention Outperforms Linear Matrix Retention on Sparse CDMs:** In Sun et al. (2023), retention uses linear decay-weighted dot products without softmax normalization across timesteps:
   $$o_n = \sum_{i \le n} \gamma^{n-i} (q_n \cdot k_i) v_i$$
   In dense, long natural language contexts ($L > 1024$), decaying linear attention excels. However, in satellite conjunctions, sequences are extremely short (median 3 CDMs, maximum 14), with sporadic updates separated by 12–24 hours. Under these conditions, the Transformer's bounded softmax normalization $\text{softmax}(QK^T / \sqrt{d})$ provides critical sharpening, allowing the model to focus sharply on the single critical update where miss distance dropped precipitously.
-- **RetNet's Trade-Off:** While RetNet has lower discrimination on sparse short tracks ($0.7506$ vs $0.8307$), it retains 32.5% fewer parameters (104,801 vs 155,201) and constant $O(1)$ memory, executing recurrently in $0.663\text{ ms}$.
+- **RetNet's Trade-Off:** While RetNet has lower discrimination on sparse short tracks ($0.7506$ vs $0.8307$), it retains 32.5% fewer parameters (104,801 vs 155,201) and constant $O(1)$ memory, executing recurrently in $0.566\text{ ms}$ ($0.57\text{ ms}$).
 
 ### 6.2 Latency and Computational Complexity
 Measured median single-encounter CPU latencies at batch size 1 (10 warmup runs, 100 repetitions on single-core CPU) are:
-- Logistic Regression: $0.115\text{ ms}$ (mean $0.124\text{ ms}$)
-- RetNet Recurrent (O(1) step): $0.663\text{ ms}$ (mean $0.781\text{ ms}$; Parallel $L=14$: $1.051\text{ ms}$)
-- Standard Transformer: $0.886\text{ ms}$ (mean $0.939\text{ ms}$)
-- HistGradientBoosting: $1.286\text{ ms}$ (mean $1.416\text{ ms}$)
-- Random Forest (200 trees): $11.018\text{ ms}$ (mean $11.368\text{ ms}$)
-- 2D B-Plane Monte Carlo ($10^6$ particles): $44.619\text{ ms}$ median ($44.689\text{ ms}$ mean across 100 encounters)
+- Logistic Regression: $0.094\text{ ms}$ ($0.09385\text{ ms}$; mean $0.094\text{ ms}$)
+- RetNet Recurrent (O(1) step): $0.566\text{ ms}$ ($0.57\text{ ms}$; mean $0.684\text{ ms}$; Parallel $L=14$: $0.847\text{ ms}$)
+- Standard Transformer: $0.776\text{ ms}$ ($0.78\text{ ms}$; mean $1.065\text{ ms}$)
+- HistGradientBoosting: $1.095\text{ ms}$ ($1.10\text{ ms}$; mean $1.319\text{ ms}$)
+- Random Forest (200 trees): $11.194\text{ ms}$ ($11.19\text{ ms}$; mean $10.992\text{ ms}$)
+- 2D B-Plane Monte Carlo ($10^6$ particles): $45.283\text{ ms}$ median ($45.28\text{ ms}$; $45.247\text{ ms}$ mean across 100 encounters)
 
 **Speedup Analysis:**
-Relative to the project's own 2D B-plane Monte Carlo quadrature engine ($44.62\text{ ms}$ for $10^6$ particles), the measured speedups are:
-- RetNet Recurrent: **$67.3\times$ faster**
-- Standard Transformer: **$50.3\times$ faster**
-- HistGradientBoosting: **$34.7\times$ faster**
-- Logistic Regression: **$389.0\times$ faster**
+Relative to the project's own 2D B-plane Monte Carlo quadrature engine ($45.28\text{ ms}$ for $10^6$ particles), the measured speedups are:
+- RetNet Recurrent: **$80.0\times$ faster**
+- Standard Transformer: **$58.3\times$ faster**
+- HistGradientBoosting: **$41.3\times$ faster**
+- Logistic Regression: **$482.5\times$ faster**
 - Random Forest: **$4.0\times$ faster**
 
 All measurements were performed under a strictly controlled single-core benchmark protocol. Disk I/O, SATCAT cross-referencing, and batch data loading were strictly excluded from the timing loops.

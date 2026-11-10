@@ -281,9 +281,12 @@ def run(n_events: int, mc_samples: int, epochs: int, seed: int, retrain: bool) -
             "histgb_minus_logreg_component_folds": {
                 "fold_differences": diff_hgb_lin,
                 "mean_difference": float(np.mean(diff_hgb_lin)),
-                "std_difference": float(np.std(diff_hgb_lin)),
+                "std_difference": float(np.std(diff_hgb_lin, ddof=1)),
+                "std_difference_sample_ddof1": float(np.std(diff_hgb_lin, ddof=1)),
+                "std_difference_pop_ddof0": float(np.std(diff_hgb_lin, ddof=0)),
+                "std_convention": "Sample standard deviation (s, ddof=1, N-1=14 degrees of freedom)",
                 "n_folds": len(h),
-                "descriptive_note": "Descriptive fold differences. Inferential p-values omitted due to CV fold dependence.",
+                "descriptive_note": "Descriptive fold differences reported as mean ± sample standard deviation (ddof=1). Inferential p-values omitted due to CV fold dependence.",
             }
         }
 
@@ -348,7 +351,7 @@ def run(n_events: int, mc_samples: int, epochs: int, seed: int, retrain: bool) -
         "grouped_cv": grouped_cv_export,
         "grouped_cv_leakage_audit_metadata": full_audit_payload.get("metadata") if full_audit_payload else None,
         "prefix_forecast_grouped_cv_1seed_641events": audit,
-        "paired_tests": paired,
+        "fold_level_descriptive_differences": paired,
         "horizon": horizons,
         "calibration": {k: {kk: vv for kk, vv in d.items() if kk not in ("y", "prob")}
                         for k, d in calibration.items()},

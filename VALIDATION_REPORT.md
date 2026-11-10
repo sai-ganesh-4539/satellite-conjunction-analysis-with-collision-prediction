@@ -196,7 +196,7 @@ where $S_n \in \mathbb{R}^{d \times d}$.
 **Audit Finding on Sparse Sequences:** Under 5-fold cross-validation on 836 encounters:
 - Transformer achieves $\text{AUC} = 0.8307 \pm 0.0369$.
 - RetNet achieves $\text{AUC} = 0.7506 \pm 0.0484$.
-- Descriptive fold differences: Transformer minus RetNet $+0.0801 \pm 0.0458$ AUC; HistGB minus RetNet $+0.1580 \pm 0.0435$ AUC. Inferential p-values from paired t-tests are omitted because overlapping training sets in 5-fold CV violate sample independence (Dietterich 1998).
+- Descriptive fold differences: Transformer minus RetNet $+0.0801 \pm 0.0457$ AUC; HistGB minus RetNet $+0.1580 \pm 0.0436$ AUC (reported as mean $\pm$ sample standard deviation with $N-1=4$, $\text{ddof}=1$; population standard deviations are $\sigma = 0.0409$ and $\sigma = 0.0390$). Inferential p-values from paired t-tests are omitted because overlapping training sets in 5-fold CV violate sample independence (Dietterich 1998).
 **Explanation:** On extremely sparse sequences (median 3 updates), bounded softmax attention $\text{softmax}(QK^T / \sqrt{d})$ provides critical sharpening on the single critical update where miss distance dropped, whereas unnormalized decaying linear retention exhibits dispersion.
 
 ### 7.3 Graph-Component Grouped Cross-Validation (Satellite Identity Leakage)
@@ -220,19 +220,19 @@ Standard random cross-validation allows the same satellite (and its static RCS, 
 To ensure scientific integrity, all latency microbenchmarks were executed under a standardized protocol: single-core CPU (x86_64), batch size 1, 100 repetitions following 10 warmup iterations. Disk I/O, SATCAT cross-referencing, and batch data loading were strictly excluded from the timing loops.
 
 1. **Measured Single-Core CPU Latencies:**
-   - Logistic Regression: **$0.115\text{ ms}$** median (mean $0.124\text{ ms}$)
-   - RetNet Recurrent (O(1) step): **$0.663\text{ ms}$** median (mean $0.781\text{ ms}$)
-   - Standard Transformer: **$0.886\text{ ms}$** median (mean $0.939\text{ ms}$)
-   - RetNet Parallel ($L=14$): **$1.051\text{ ms}$** median (mean $1.249\text{ ms}$)
-   - HistGradientBoosting: **$1.286\text{ ms}$** median (mean $1.416\text{ ms}$)
-   - Random Forest (200 trees): **$11.018\text{ ms}$** median (mean $11.368\text{ ms}$)
-   - 2D B-Plane Monte Carlo ($10^6$ particles): **$44.619\text{ ms}$** median (mean $44.689\text{ ms}$)
+   - Logistic Regression: **$0.094\text{ ms}$** median ($0.09385\text{ ms}$, mean $0.094\text{ ms}$)
+   - RetNet Recurrent (O(1) step): **$0.566\text{ ms}$** median ($0.57\text{ ms}$, mean $0.684\text{ ms}$)
+   - Standard Transformer: **$0.776\text{ ms}$** median ($0.78\text{ ms}$, mean $1.065\text{ ms}$)
+   - RetNet Parallel ($L=14$): **$0.847\text{ ms}$** median (mean $1.012\text{ ms}$)
+   - HistGradientBoosting: **$1.095\text{ ms}$** median ($1.10\text{ ms}$, mean $1.319\text{ ms}$)
+   - Random Forest (200 trees): **$11.194\text{ ms}$** median ($11.19\text{ ms}$, mean $10.992\text{ ms}$)
+   - 2D B-Plane Monte Carlo ($10^6$ particles): **$45.283\text{ ms}$** median ($45.28\text{ ms}$, mean $45.247\text{ ms}$)
 
-2. **Empirical Speedups over 2D B-Plane Monte Carlo ($44.62\text{ ms}$):**
-   - RetNet Recurrent: **$67.3\times$ faster**
-   - Standard Transformer: **$50.3\times$ faster**
-   - HistGradientBoosting: **$34.7\times$ faster**
-   - Logistic Regression: **$389.0\times$ faster**
+2. **Empirical Speedups over 2D B-Plane Monte Carlo ($45.28\text{ ms}$):**
+   - RetNet Recurrent: **$80.0\times$ faster**
+   - Standard Transformer: **$58.3\times$ faster**
+   - HistGradientBoosting: **$41.3\times$ faster**
+   - Logistic Regression: **$482.5\times$ faster**
    - Random Forest: **$4.0\times$ faster**
 
 ---
