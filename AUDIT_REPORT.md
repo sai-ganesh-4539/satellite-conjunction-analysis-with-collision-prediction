@@ -74,8 +74,8 @@ All 34 automated tests in `tests/` pass with zero failures. Critical scientific 
 - **Audit Reality:**
   - On the 836 Space-Track encounters, HistGradientBoosting achieves **0.9086 AUC** and Random Forest achieves **0.9050 AUC**.
   - Standard Transformer achieves **0.8307 ± 0.0369 AUC**, and RetNet achieves **0.7506 ± 0.0484 AUC** (unified 5-fold CV).
-  - Paired two-tailed $t$-test yields $t = -3.914, p = 0.0173$. While statistically significant across the 5 outer folds, standard $k$-fold CV violates sample independence (Dietterich 1998, 75% training overlap). HistGB significantly outperforms RetNet on tabular summaries ($t = -8.111, p = 0.0013$).
-  - However, under strict graph-component cross-validation with zero satellite overlap between train and test, tree models drop by 18 points (0.954 to 0.777) due to memorization of static satellite attributes, while regularized linear models maintain solid generalization ($0.823 \pm 0.051$).
+  - Descriptive fold differences: Transformer minus RetNet $+0.0801 \pm 0.0458$ AUC; HistGB minus RetNet $+0.1580 \pm 0.0435$ AUC. Inferential p-values are omitted because standard $k$-fold CV violates sample independence (Dietterich 1998, 75% training overlap).
+  - Tabular models under strict graph-component cross-validation with zero satellite overlap between train and test drop by 18 points (0.954 to 0.777) due to memorization of static satellite attributes, while regularized linear models maintain solid generalization ($0.823 \pm 0.051$). Note: Deep sequence models (Transformer, RetNet) have not been evaluated for unseen-satellite generalization under this grouped protocol.
 - **Resolution:** All papers, documentation, and reports present these results transparently, highlighting the exact boundary conditions where tabular and sequence architectures excel.
 
 ---

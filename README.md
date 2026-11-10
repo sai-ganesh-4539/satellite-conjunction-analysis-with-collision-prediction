@@ -98,7 +98,7 @@ Evaluated across 836 real orbital encounters under a unified 5-fold cross-valida
 
 ### Key Benchmark Insights
 1. **Tree Ensembles Lead on Sparse Sequences:** 59.5% of satellite encounters have $\le 3$ updates. Tabular gradient boosting on 71 summary statistics achieves the highest discrimination ($0.9086$ AUC), screening out $65.4\%$ of non-critical events at an operating recall of $84.3\%$.
-2. **Transformer vs. RetNet Statistical Comparison:** A paired two-tailed $t$-test across the 5 outer test folds ($n=5, t=-3.914, p=0.0173$) reflects an empirical performance difference favoring Transformer softmax attention over linear retention on sparse sequences. Standard paired $t$-tests on $k$-fold CV also suffer from training-overlap dependence (Dietterich, 1998), so this difference is an observed performance gap under the evaluated cross-validation splits.
+2. **Transformer vs. RetNet Comparison:** Across the 5 outer test folds, the Transformer achieves higher discrimination ($0.8307 \pm 0.0369$ vs. $0.7506 \pm 0.0484$ AUC; descriptive mean fold difference $+0.0801 \pm 0.0458$ AUC), reflecting the advantage of softmax attention over unnormalized linear retention on sparse update tracks. Inferential p-values from paired t-tests are intentionally omitted because 5-fold cross-validation involves 75% training set overlap between folds, violating the sample independence assumption required for valid hypothesis testing (Dietterich, 1998).
 3. **Execution Speed & Speedup:** RetNet executes recurrently in $0.663\text{ ms}$ on CPU with $O(1)$ memory. Compared to the measured 2D B-plane Monte Carlo engine ($44.62\text{ ms}$ for $10^6$ particles), RetNet is **$67.3\times$ faster**, Transformer is **$50.3\times$ faster**, and HistGradientBoosting is **$34.7\times$ faster**.
 
 ---
@@ -115,6 +115,9 @@ To examine whether decision trees memorize static satellite identity features (e
 | **Component Grouping (Union-Find)** | **Zero satellite overlap between train/test** | **$0.777 \pm 0.053$** | **$0.802 \pm 0.045$** | **$0.823 \pm 0.051$** |
 
 **Finding:** When completely isolated from familiar satellites (`group_component`), tree ensembles drop by $\approx 18$ points (0.954 to 0.777). Regularized linear regression, by contrast, generalizes with high stability ($0.823 \pm 0.051$).
+
+> [!NOTE]
+> **Scope of Grouped Cross-Validation Audit:** The connected-component grouped cross-validation audit evaluated tabular models (HistGradientBoosting, Random Forest, Logistic Regression) only. Deep sequence architectures (Standard Transformer and RetNet) have not been evaluated for unseen-satellite generalization under the full multi-seed connected-component grouping protocol. The grouped audit must not be construed as validating unseen-satellite generalization for deep architectures.
 
 ---
 

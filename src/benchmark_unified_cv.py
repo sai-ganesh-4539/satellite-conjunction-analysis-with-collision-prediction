@@ -62,7 +62,6 @@ from sklearn.metrics import (
     precision_recall_curve,
 )
 from scipy.optimize import minimize
-from scipy.stats import ttest_rel
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
@@ -597,20 +596,40 @@ def run_unified_cross_validation(n_splits=5, epochs=40, seed=42):
                 "folds": [float(v) for v in vals],
             }
 
-    # Paired t-tests on AUC-ROC
+    # Fold-level descriptive differences on AUC-ROC
     retnet_aucs = [f["auc_roc"] for f in fold_results["RetNet Surrogate (Ours)"]]
     trans_aucs = [f["auc_roc"] for f in fold_results["Transformer Baseline"]]
     hgb_aucs = [f["auc_roc"] for f in fold_results["HistGradientBoosting"]]
 
-    t_ret_trans, p_ret_trans = ttest_rel(retnet_aucs, trans_aucs)
-    t_ret_hgb, p_ret_hgb = ttest_rel(retnet_aucs, hgb_aucs)
+    diff_trans = [float(t - r) for t, r in zip(trans_aucs, retnet_aucs)]
+    diff_hgb = [float(h - r) for h, r in zip(hgb_aucs, retnet_aucs)]
+
+    fold_differences = {
+        "transformer_minus_retnet": {
+            "fold_differences": diff_trans,
+            "mean_difference": float(np.mean(diff_trans)),
+            "std_difference": float(np.std(diff_trans)),
+            "descriptive_note": (
+                "Descriptive fold differences. Ordinary paired t-test p-values omitted "
+                "because overlapping training folds violate sample independence (Dietterich 1998)."
+            ),
+        },
+        "histgb_minus_retnet": {
+            "fold_differences": diff_hgb,
+            "mean_difference": float(np.mean(diff_hgb)),
+            "std_difference": float(np.std(diff_hgb)),
+            "descriptive_note": (
+                "Descriptive fold differences. Ordinary paired t-test p-values omitted "
+                "because overlapping training folds violate sample independence (Dietterich 1998)."
+            ),
+        },
+    }
 
     print("\n" + "=" * 90)
-    print("PAIRED STATISTICAL SIGNIFICANCE TESTS (5 Folds):")
-    print(f"  RetNet vs Transformer:  t = {t_ret_trans:+.3f}, p = {p_ret_trans:.4f} "
-          f"({'Statistically Significant' if p_ret_trans < 0.05 else 'No Detectable Difference (p >= 0.05)'})")
-    print(f"  RetNet vs HistGB:       t = {t_ret_hgb:+.3f}, p = {p_ret_hgb:.4f} "
-          f"({'Statistically Significant' if p_ret_hgb < 0.05 else 'No Detectable Difference'})")
+    print("FOLD-LEVEL DESCRIPTIVE AUC DIFFERENCES (5 Folds):")
+    print(f"  Transformer - RetNet:  mean diff = {np.mean(diff_trans):+.4f} ± {np.std(diff_trans):.4f}")
+    print(f"  HistGB - RetNet:       mean diff = {np.mean(diff_hgb):+.4f} ± {np.std(diff_hgb):.4f}")
+    print("  Note: Inferential p-values omitted because overlapping k-fold splits violate sample independence.")
     print("=" * 90)
 
     # ── Standardized Canonical Latency Benchmark ──
@@ -702,10 +721,7 @@ def run_unified_cross_validation(n_splits=5, epochs=40, seed=42):
     payload = {
         "provenance": provenance,
         "summary": summary,
-        "statistical_tests": {
-            "retnet_vs_transformer": {"t_stat": float(t_ret_trans), "p_value": float(p_ret_trans)},
-            "retnet_vs_histgb": {"t_stat": float(t_ret_hgb), "p_value": float(p_ret_hgb)},
-        },
+        "fold_level_descriptive_differences": fold_differences,
         "latencies": latencies,
         "oof_evaluation": oof_eval,
         "empirical_curves": empirical_curves,
@@ -717,10 +733,10 @@ def run_unified_cross_validation(n_splits=5, epochs=40, seed=42):
     print(f"\nSaved full benchmark data to: {out_json}")
 
     # Generate Markdown Report
-    generate_markdown_report(summary, p_ret_trans, p_ret_hgb, latencies)
+    generate_markdown_report(summary, fold_differences, latencies)
 
 
-def generate_markdown_report(summary, p_ret_trans, p_ret_hgb, latencies):
+def generate_markdown_report(summary, fold_differences, latencies):
     md_path = os.path.join(RESULTS_DIR, "UNIFIED_BENCHMARK_REPORT.md")
 
     lr_lat = f"{latencies.get('Logistic Regression', {}).get('median', 0.16):.2f} ms"
@@ -766,11 +782,12 @@ def generate_markdown_report(summary, p_ret_trans, p_ret_hgb, latencies):
 
     lines.append("\n---\n")
     lines.append("### Key Scientific Findings\n")
-    sig_trans = "Statistically Significant" if p_ret_trans < 0.05 else "No Statistically Significant Difference at $\\alpha = 0.05$"
-    sig_hgb = "Statistically Significant" if p_ret_hgb < 0.05 else "No Detectable Difference"
-    lines.append("1. **Paired Statistical Significance Tests (5 Outer Test Folds):**")
-    lines.append(f"   - RetNet vs. Transformer: $p = {p_ret_trans:.4f}$ ({sig_trans}).")
-    lines.append(f"   - RetNet vs. HistGB: $p = {p_ret_hgb:.4f}$ ({sig_hgb}).")
+    diff_t = fold_differences["transformer_minus_retnet"]
+    diff_h = fold_differences["histgb_minus_retnet"]
+    lines.append("1. **Fold-Level Descriptive Differences on AUC-ROC (5 Outer Test Folds):**")
+    lines.append(f"   - Transformer minus RetNet: mean diff = ${diff_t['mean_difference']:+.4f} \\pm {diff_t['std_difference']:.4f}$ AUC.")
+    lines.append(f"   - HistGB minus RetNet: mean diff = ${diff_h['mean_difference']:+.4f} \\pm {diff_h['std_difference']:.4f}$ AUC.")
+    lines.append("   - *Note on Statistical Reporting:* Inferential p-values from paired t-tests are intentionally omitted because 5-fold cross-validation involves 75% training set overlap between folds, violating the sample independence assumption required for valid hypothesis testing (Dietterich, 1998).")
     lines.append("2. **Computational Speedups vs 2D B-Plane Monte Carlo:**")
     for k, v in latencies.get("speedups_vs_2d_monte_carlo", {}).items():
         lines.append(f"   - {k}: **{v:.1f}x faster** than 1M-particle Monte Carlo quadrature.")

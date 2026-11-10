@@ -30,7 +30,6 @@ from sklearn.metrics import mean_absolute_error, r2_score
 from sklearn.model_selection import StratifiedGroupKFold, StratifiedKFold
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
-from scipy.stats import ttest_rel
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
@@ -277,9 +276,16 @@ def run(n_events: int, mc_samples: int, epochs: int, seed: int, retrain: bool) -
 
     paired = {}
     if len(h) == len(lin) and len(h) >= 2:
-        t_stat, p_value = ttest_rel(h, lin)
-        paired = {"histgb_vs_logreg_component_folds": {"t_stat": float(t_stat), "p_value": float(p_value),
-                                                       "n_folds": len(h)}}
+        diff_hgb_lin = [float(hi - li) for hi, li in zip(h, lin)]
+        paired = {
+            "histgb_minus_logreg_component_folds": {
+                "fold_differences": diff_hgb_lin,
+                "mean_difference": float(np.mean(diff_hgb_lin)),
+                "std_difference": float(np.std(diff_hgb_lin)),
+                "n_folds": len(h),
+                "descriptive_note": "Descriptive fold differences. Inferential p-values omitted due to CV fold dependence.",
+            }
+        }
 
     print("Streaming-horizon curve...")
     horizons = horizon_curve(batch, seed=seed)

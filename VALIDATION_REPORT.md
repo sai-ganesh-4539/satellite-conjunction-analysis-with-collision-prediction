@@ -196,10 +196,12 @@ where $S_n \in \mathbb{R}^{d \times d}$.
 **Audit Finding on Sparse Sequences:** Under 5-fold cross-validation on 836 encounters:
 - Transformer achieves $\text{AUC} = 0.8307 \pm 0.0369$.
 - RetNet achieves $\text{AUC} = 0.7506 \pm 0.0484$.
-- Paired two-tailed $t$-test: $t = -3.914, p = 0.0173$ ($n=5$). As established by Dietterich (1998), standard paired $t$-tests on $k$-fold cross-validation violate sample independence due to overlapping training sets, which inflates Type I error rates.
+- Descriptive fold differences: Transformer minus RetNet $+0.0801 \pm 0.0458$ AUC; HistGB minus RetNet $+0.1580 \pm 0.0435$ AUC. Inferential p-values from paired t-tests are omitted because overlapping training sets in 5-fold CV violate sample independence (Dietterich 1998).
 **Explanation:** On extremely sparse sequences (median 3 updates), bounded softmax attention $\text{softmax}(QK^T / \sqrt{d})$ provides critical sharpening on the single critical update where miss distance dropped, whereas unnormalized decaying linear retention exhibits dispersion.
 
 ### 7.3 Graph-Component Grouped Cross-Validation (Satellite Identity Leakage)
+*Note on Grouped CV Scope:* This audit evaluated tabular models only. Deep sequence architectures (Standard Transformer and RetNet) have not been evaluated for unseen-satellite generalization under the full multi-seed connected-component grouping protocol.
+
 Standard random cross-validation allows the same satellite (and its static RCS, dimensions, and exclusion volume) to appear in both training and test folds.
 
 | Grouping Scheme | Leakage Constraint | HistGradientBoosting AUC | Random Forest AUC | Logistic Regression AUC |
