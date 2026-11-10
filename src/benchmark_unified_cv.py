@@ -643,8 +643,8 @@ def run_unified_cross_validation(n_splits=5, epochs=40, seed=42):
 
     print("\n" + "=" * 90)
     print("FOLD-LEVEL DESCRIPTIVE AUC DIFFERENCES (5 Folds):")
-    print(f"  Transformer - RetNet:  mean diff = {mean_trans:+.4f} ± {std_trans_sample:.4f} (sample s, ddof=1) [pop σ: {std_trans_pop:.4f}]")
-    print(f"  HistGB - RetNet:       mean diff = {mean_hgb:+.4f} ± {std_hgb_sample:.4f} (sample s, ddof=1) [pop σ: {std_hgb_pop:.4f}]")
+    print(f"  Transformer - RetNet:  mean diff = {mean_trans:+.4f} +/- {std_trans_sample:.4f} (sample s, ddof=1) [pop sigma: {std_trans_pop:.4f}]")
+    print(f"  HistGB - RetNet:       mean diff = {mean_hgb:+.4f} +/- {std_hgb_sample:.4f} (sample s, ddof=1) [pop sigma: {std_hgb_pop:.4f}]")
     print("  Note: Inferential p-values omitted because overlapping k-fold splits violate sample independence.")
     print("=" * 90)
 
