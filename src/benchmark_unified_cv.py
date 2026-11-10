@@ -649,11 +649,16 @@ def run_unified_cross_validation(n_splits=5, epochs=40, seed=42):
     print("=" * 90)
 
     # ── Standardized Canonical Latency Benchmark ──
-    latencies = measure_canonical_latencies(final_models_dict, sample_tab, sample_seq, n_warmup=10, n_repeats=100)
     latency_file = os.path.join(RESULTS_DIR, "empirical_latency_benchmark.json")
-    with open(latency_file, "w", encoding="utf-8") as f:
-        json.dump(latencies, f, indent=2)
-    print(f"Saved canonical latency benchmark to: {latency_file}")
+    if os.path.exists(latency_file):
+        with open(latency_file, "r", encoding="utf-8") as f:
+            latencies = json.load(f)
+        print(f"Loaded existing canonical latency benchmark from: {latency_file}")
+    else:
+        latencies = measure_canonical_latencies(final_models_dict, sample_tab, sample_seq, n_warmup=10, n_repeats=100)
+        with open(latency_file, "w", encoding="utf-8") as f:
+            json.dump(latencies, f, indent=2)
+        print(f"Saved canonical latency benchmark to: {latency_file}")
 
     # ── Compute Empirical Curves from Out-of-Fold Predictions ──
     y_true_all = oof_labels.astype(int)
