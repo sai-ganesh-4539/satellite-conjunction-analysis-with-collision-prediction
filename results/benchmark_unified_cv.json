@@ -1,7 +1,7 @@
 {
   "provenance": {
-    "timestamp_utc": "2026-11-10T11:49:26Z",
-    "git_commit": "83ddc6f304a045762cc8d99c475c479f73fdb461",
+    "timestamp_utc": "2026-11-10T14:04:21Z",
+    "git_commit": "9e1f25f3e8c9f8effed5556014adc99b254c5281",
     "dataset_md5": {
       "cdms.csv": "18079794cc1403b46d014ee5913a3fd1",
       "satcat.csv": "77b99affa6ad3aff73990913653d2020"
@@ -918,8 +918,11 @@
         0.016380952380952385
       ],
       "mean_difference": 0.08007316704459562,
-      "std_difference": 0.0409128616890597,
-      "descriptive_note": "Descriptive fold differences. Ordinary paired t-test p-values omitted because overlapping training folds violate sample independence (Dietterich 1998)."
+      "std_difference": 0.04574196994539218,
+      "std_difference_sample_ddof1": 0.04574196994539218,
+      "std_difference_pop_ddof0": 0.0409128616890597,
+      "std_convention": "Sample standard deviation (s, ddof=1, N-1=4 degrees of freedom)",
+      "descriptive_note": "Descriptive fold differences reported as mean \u00b1 sample standard deviation (ddof=1). Ordinary paired t-test p-values omitted because overlapping training folds violate sample independence (Dietterich 1998)."
     },
     "histgb_minus_retnet": {
       "fold_differences": [
@@ -930,8 +933,11 @@
         0.08971428571428575
       ],
       "mean_difference": 0.15803749055177624,
-      "std_difference": 0.038968031736454724,
-      "descriptive_note": "Descriptive fold differences. Ordinary paired t-test p-values omitted because overlapping training folds violate sample independence (Dietterich 1998)."
+      "std_difference": 0.04356758395604097,
+      "std_difference_sample_ddof1": 0.04356758395604097,
+      "std_difference_pop_ddof0": 0.038968031736454724,
+      "std_convention": "Sample standard deviation (s, ddof=1, N-1=4 degrees of freedom)",
+      "descriptive_note": "Descriptive fold differences reported as mean \u00b1 sample standard deviation (ddof=1). Ordinary paired t-test p-values omitted because overlapping training folds violate sample independence (Dietterich 1998)."
     }
   },
   "latencies": {
