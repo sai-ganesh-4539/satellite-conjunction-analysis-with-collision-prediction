@@ -92,12 +92,12 @@ Evaluated across 836 real orbital encounters under a unified 5-fold cross-valida
 | **Linear Tabular** | Logistic Regression (L2) | $0.8424 \pm 0.0299$ | $0.6700 \pm 0.0653$ | $0.7727 \pm 0.0436$ | $0.6107 \pm 0.0396$ | $0.1602$ | $0.1449$ | $\mathbf{0.156\text{ ms}}$ |
 | **Tree Ensemble** | Random Forest (200 trees) | $0.9050 \pm 0.0357$ | $0.7957 \pm 0.0684$ | $0.8361 \pm 0.0401$ | $0.6815 \pm 0.0617$ | $0.1119$ | $0.1054$ | $7.772\text{ ms}$ |
 | **Gradient Boost** | **HistGradientBoosting** | $\mathbf{0.9086 \pm 0.0226}$ | $\mathbf{0.8121 \pm 0.0439}$ | $\mathbf{0.8744 \pm 0.0296}$ | $\mathbf{0.7361 \pm 0.0714}$ | $\mathbf{0.1028}$ | $0.0950$ | $1.557\text{ ms}$ |
-| **Deep Sequence** | Standard Transformer | $0.8307 \pm 0.0369$ | $0.6440 \pm 0.0633$ | $0.7655 \pm 0.0499$ | $0.6091 \pm 0.0536$ | $0.1586$ | $0.1444$ | $1.728\text{ ms}$ |
-| **Deep Surrogate** | RetNet (Proposed) | $0.7506 \pm 0.0484$ | $0.5349 \pm 0.0722$ | $0.7308 \pm 0.0251$ | $0.5114 \pm 0.0458$ | $0.1819$ | $0.1466$ | $\mathbf{1.210\text{ ms}}$ |
+| **Deep Sequence** | Standard Transformer | $0.8524 \pm 0.0264$ | $0.6590 \pm 0.0476$ | $0.7858 \pm 0.0531$ | $0.6227 \pm 0.0471$ | $0.1475$ | $0.1372$ | $1.388\text{ ms}$ |
+| **Deep Surrogate** | RetNet (Proposed) | $0.8155 \pm 0.0362$ | $0.6328 \pm 0.0455$ | $0.7679 \pm 0.0414$ | $0.5583 \pm 0.0749$ | $0.1522$ | $0.0960$ | $\mathbf{1.206\text{ ms}}$ |
 
 ### Key Benchmark Insights
 1. **Tree Ensembles Lead on Sparse Sequences:** 59.5% of satellite encounters have $\le 3$ updates. Tabular gradient boosting on 71 summary statistics achieves the highest discrimination ($0.9086$ AUC), screening out $65.4\%$ of non-critical events at an operating recall of $84.3\%$.
-2. **Transformer vs. RetNet Statistical Significance:** A paired two-tailed $t$-test ($n=5, t=-3.914, p=0.0173$) demonstrates that softmax attention sharpens focus on sparse updates compared to unnormalized linear retention.
+2. **Transformer vs. RetNet Statistical Comparison:** A paired two-tailed $t$-test ($n=5, t=-2.398, p=0.0745$) reflects an empirical trend favoring Transformer attention over linear retention on sparse sequences, though it falls short of formal $\alpha = 0.05$ significance. Standard paired $t$-tests on $k$-fold CV also suffer from training-overlap dependence (Dietterich, 1998), so this difference is an observed performance trend on sparse sequences rather than a proven universal inequality.
 3. **Execution Speed:** RetNet executes in $1.21\text{ ms}$ on CPU with $O(1)$ recurrent memory, well-suited for streaming edge flight hardware.
 
 ---

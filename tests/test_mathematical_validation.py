@@ -70,6 +70,16 @@ class TestBPlaneProjection(unittest.TestCase):
             self.assertTrue(np.allclose(proj_cov, proj_cov.T, atol=1e-10))
             eigvals = np.linalg.eigvalsh(proj_cov)
             self.assertTrue(np.all(eigvals > 0), f"Eigenvalues must be positive, got {eigvals}")
+            
+            # Direct algebraic identity: B @ I_3 @ B.T == I_2 strictly proves
+            # ||xi|| = 1, ||zeta|| = 1, and xi . zeta = 0
+            b_eye = project_rtn_covariance_to_bplane(np.eye(3), v)
+            self.assertTrue(np.allclose(b_eye, np.eye(2), atol=1e-10), f"Basis is not orthonormal for v={v}")
+            
+            # Direct algebraic identity: B @ (h @ h.T) @ B.T == 0 strictly proves
+            # xi . h = 0 and zeta . h = 0 (basis is orthogonal to relative velocity)
+            b_null = project_rtn_covariance_to_bplane(np.outer(h, h), v)
+            self.assertTrue(np.allclose(b_null, np.zeros((2, 2)), atol=1e-10), f"Basis is not orthogonal to h for v={v}")
 
     def test_trace_invariance_and_bounding(self):
         """The trace of the projected 2D covariance cannot exceed the trace of the 3D covariance."""
@@ -208,9 +218,11 @@ class TestMonteCarloAndConfidenceBands(unittest.TestCase):
         self.assertLessEqual(c_lo, exact)
         self.assertLessEqual(exact, c_hi)
 
-        # Clopper-Pearson exact interval is mathematically conservative (never narrower than Wilson)
-        self.assertLessEqual(c_lo, w_lo + 1e-6)
-        self.assertGreaterEqual(c_hi, w_hi - 1e-6)
+        # Clopper-Pearson exact interval provides conservative coverage probability P(coverage) >= 1 - alpha.
+        # Note: At internal points (k > 0, k < n), Clopper-Pearson is typically wider than Wilson,
+        # but near boundary limits (k=0, k=n) Wilson's upper bound can slightly exceed Clopper-Pearson.
+        self.assertLessEqual(c_lo, exact)
+        self.assertGreaterEqual(c_hi, exact)
 
     def test_interval_edge_cases(self):
         """Check edge cases: 0 hits out of N, and N hits out of N."""

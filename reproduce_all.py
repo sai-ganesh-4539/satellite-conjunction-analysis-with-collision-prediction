@@ -138,11 +138,10 @@ def step_5_package_bundle():
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
         for rel in files_to_pack:
             abs_p = os.path.join(REPO_ROOT, rel)
-            if os.path.exists(abs_p):
-                zf.write(abs_p, arcname=rel)
-                print(f"  + Added: {rel}")
-            else:
-                print(f"  - Warning: file not found: {rel}")
+            if not os.path.exists(abs_p):
+                raise FileNotFoundError(f"Critical required artifact missing from submission bundle: {abs_p}")
+            zf.write(abs_p, arcname=rel)
+            print(f"  + Added: {rel}")
 
     size_mb = os.path.getsize(zip_path) / (1024.0 * 1024.0)
     print(f"\n[OK] Submission Bundle packaged successfully: {zip_path} ({size_mb:.2f} MB)")
