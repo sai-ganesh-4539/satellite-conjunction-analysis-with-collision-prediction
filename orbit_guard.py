@@ -59,6 +59,12 @@ def compute_cam_recommendation(
     Delta-s ~= 3 * pi * (delta_v / v_orb) * a * (number of orbits).
     For delta_t = 24-48 hours, approx 0.05 to 0.3 m/s achieves 3 to 10 km clearance.
     """
+    disclaimer_str = (
+        "DEMONSTRATION HEURISTIC ONLY: Computed via linearized along-track Clohessy-Wiltshire "
+        "secular drift. Not certified for flight operations. Real avoidance decisions require "
+        "full 6-DOF numerical ephemeris propagation, thruster dispersion modeling, and "
+        "catalog-wide secondary conjunction screening."
+    )
     if predicted_pc < PC_SAFE:
         return {
             "status": "SAFE / MONITOR",
@@ -67,6 +73,8 @@ def compute_cam_recommendation(
             "burn_window": "None required",
             "direction": "N/A",
             "message": "Encounter probability is well below safety screening threshold (Pc < 1e-5). Maintain nominal tracking.",
+            "is_operational_certified": False,
+            "disclaimer": disclaimer_str,
         }
     elif predicted_pc < PC_CRITICAL:
         return {
@@ -75,7 +83,9 @@ def compute_cam_recommendation(
             "delta_v_ms": 0.025,
             "burn_window": f"Prepare standby burn plan for T - {min(24.0, time_to_tca_hours/2):.0f}h",
             "direction": "Prograde (+V) or Retrograde (-V)",
-            "message": "Close monitoring required. Covariance dispersion elevated. Prepare avoidance sequence if next update confirms escalation.",
+            "message": "[DEMO HEURISTIC] Close monitoring required. Covariance dispersion elevated. Prepare avoidance sequence if next update confirms escalation.",
+            "is_operational_certified": False,
+            "disclaimer": disclaimer_str,
         }
     else:
         # Critical encounter: calculate required delta-V to achieve target clearance (e.g. 5 km)
@@ -88,7 +98,9 @@ def compute_cam_recommendation(
             "delta_v_ms": round(est_dv, 3),
             "burn_window": f"EXECUTE AT T - 24 HOURS (Lead time: {time_to_tca_hours:.1f}h available)",
             "direction": "Optimal Along-Track (Prograde +V)",
-            "message": f"CRITICAL: Probability exceeds 5e-4 threshold. Execute impulsive avoidance burn of {est_dv:.3f} m/s to ensure >5.0 km clearance.",
+            "message": f"[DEMO HEURISTIC] Probability exceeds 5e-4 threshold. Heuristic along-track burn estimate: ~{est_dv:.3f} m/s to clear 5.0 km. MUST BE VERIFIED WITH HIGH-FIDELITY PROPAGATION.",
+            "is_operational_certified": False,
+            "disclaimer": disclaimer_str,
         }
 
 
@@ -96,6 +108,7 @@ def format_banner():
     print("=" * 80)
     print("      ORBIT-GUARD: SATELLITE CONJUNCTION ASSESSMENT & FLIGHT SAFETY SYSTEM")
     print("      AI Surrogate vs. 1,000,000-Sample Monte Carlo Astrodynamics Engine")
+    print("      *** FLIGHT SAFETY NOTICE: DEMONSTRATION & RESEARCH TOOL ONLY ***")
     print("=" * 80)
 
 
@@ -167,10 +180,11 @@ def stream_encounter(
         if step_delay > 0:
             time.sleep(step_delay)
 
-    # Final Ground-Truth Verification vs 1,000,000-Sample Monte Carlo Simulation
+    # Numerical Monte Carlo Integration Sampling Verification
     print("\n" + "=" * 80)
-    print("GROUND-TRUTH HIGH-FIDELITY MONTE CARLO SIMULATION EXECUTION...")
-    print(f"  Executing {mc_samples:,} virtual particle trajectory propagations in B-plane...")
+    print("NUMERICAL MONTE CARLO INTEGRATION BENCHMARK (1,000,000 B-Plane Particles)...")
+    print("  [NOTE: Sampling verification of 2D isotropic Gaussian integral; not independent orbit determination]")
+    print(f"  Executing {mc_samples:,} virtual particle trajectory samples in B-plane...")
     
     t_mc_start = time.perf_counter()
     mc_res = monte_carlo_pc(
@@ -182,24 +196,28 @@ def stream_encounter(
     )
     mc_elapsed_ms = (time.perf_counter() - t_mc_start) * 1000.0
 
-    speedup = mc_elapsed_ms / max(0.001, retnet_time_ms)
+    speedup_2d = mc_elapsed_ms / max(0.001, retnet_time_ms)
+    speedup_3d = 3000.0 / max(0.001, retnet_time_ms)
 
     print(f"  * Monte Carlo Collision Prob: {mc_res['pc']:.4e} (Hits: {mc_res['hits']}/{mc_samples:,})")
     print(f"  * 95% Wilson Confidence Band: [{mc_res['wilson_95'][0]:.4e}, {mc_res['wilson_95'][1]:.4e}]")
-    print(f"  * Monte Carlo Execution Time: {mc_elapsed_ms:.1f} ms")
-    print(f"  * RetNet Inference Time:      {retnet_time_ms:.2f} ms")
-    print(f"  * Operational Speedup:        {speedup:,.0f}x FASTER THAN MONTE CARLO")
+    print(f"  * 2D Monte Carlo Timing:      {mc_elapsed_ms:.1f} ms (1,000,000 samples)")
+    print(f"  * RetNet Inference Latency:   {retnet_time_ms:.2f} ms")
+    print(f"  * Speedup vs 2D B-Plane MC:   {speedup_2d:,.0f}x faster ({retnet_time_ms:.2f} ms vs {mc_elapsed_ms:.1f} ms)")
+    print(f"  * Est. Speedup vs 3D Prop:    ~{speedup_3d:,.0f}x faster (surrogate vs ~3,000 ms numerical integration)")
 
-    # Actionable Flight Maneuver Recommendation
+    # Flight Dynamics Recommendation (Demonstration Heuristic)
     cam = compute_cam_recommendation(pred_miss_val, pred_pc_val, time_to_tca_hours=hours_to_tca)
 
     print("\n" + "=" * 80)
-    print("ACTIONABLE FLIGHT DYNAMICS RECOMMENDATION:")
+    print("CONJUNCTION ASSESSMENT ADVISORY (DEMONSTRATION HEURISTIC):")
+    print("  *** FLIGHT SAFETY DISCLAIMER: DEMONSTRATION HEURISTIC ONLY. NOT FOR OPERATIONAL FLIGHT USE. ***")
     print(f"  Status:       {cam['status']}")
     print(f"  Burn Window:  {cam['burn_window']}")
     if cam['action_required']:
         print(f"  Maneuver Dv:  {cam['delta_v_ms']} m/s ({cam['direction']})")
     print(f"  Advisory:     {cam['message']}")
+    print(f"  Safety Note:  {cam['disclaimer']}")
     print("=" * 80 + "\n")
 
 

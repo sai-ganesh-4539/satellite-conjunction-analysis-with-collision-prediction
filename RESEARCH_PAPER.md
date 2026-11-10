@@ -14,6 +14,8 @@ We benchmark a diverse hierarchy of models under a unified 5-fold cross-validati
 
 Analysis of sequence length shows that 59.5% of encounters contain only 1 to 3 CDM updates (median length = 3.0), leaving sequence models with limited temporal signal to model. Subgroup experiments demonstrate that while gradient boosting maintains strong performance across both short ($N \le 3, \text{AUC} = 0.8948$) and longer histories ($N \ge 4, \text{AUC} = 0.9254$), deep sequence models remain near $\text{AUC} \approx 0.814\text{--}0.818$. Furthermore, streaming horizon analysis reveals that the primary geometric risk signals are largely resolved by the second observation ($k = 2, \text{AUC} = 0.9293$). At validation-tuned operating thresholds targeting $\ge 90\%$ recall, out-of-fold test recall reached $\approx 84\%\text{--}88\%$ across models (with Random Forest reaching $92.4\%$). In an operational triage configuration, gradient boosting safely screens out $65.4\%$ of non-critical events, while RetNet screens out $38.3\%$. Furthermore, under strict graph-component cross-validation with zero satellite overlap between train and test, tree models experience an 18-point drop while regularized linear models maintain solid generalization ($\text{AUC} = 0.823 \pm 0.051$), demonstrating that tree models partially rely on static spacecraft identity features. These findings delineate the boundary conditions where tabular and sequence architectures operate effectively in space situational awareness.
 
+Finally, we implement a vectorized 1,000,000-sample B-plane Monte Carlo simulator and evaluate surrogate speedups. We document that public CDMs lack 2x2 B-plane covariance matrices, requiring an isotropic scale calibration against catalog $P_c$ under which 71% of high-risk cases require radius inflation due to real-world along-track covariance elongation; the resulting Monte Carlo simulations serve as numerical sampling verification of analytical quadrature, rather than independent orbit determination. Computational profiling reveals that RetNet inference ($1.21\text{ ms}$) provides a $15\times\text{--}40\times$ acceleration over 2D B-plane Monte Carlo sampling ($48\text{ ms}$) and an estimated $>2,500\times$ speedup over full 3D numerical orbit propagation ($3,000\text{--}5,000\text{ ms}$). An illustrative Collision Avoidance Maneuver (CAM) module is provided for demonstration, with explicit flight safety disclaimers.
+
 ---
 
 ## 1. Introduction
@@ -95,7 +97,7 @@ Features at each observation step include:
 
 | Model Category | Model Architecture | AUC-ROC | PR-AUC (Average Precision) | Accuracy ($\tau=0.5$) | F1-Score ($\tau=0.5$) | Brier Score ($\downarrow$) | ECE ($\downarrow$) | Measured Latency (Batch=1) |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Classical Physics** | **Monte Carlo ($10^6$ sims)** | Reference | Reference | N/A | N/A | N/A | N/A | 1,000 – 5,000 ms (Literature) |
+| **Classical Physics** | **Monte Carlo ($10^6$ sims, 2D B-Plane)** | Reference | Reference | N/A | N/A | N/A | N/A | 47.8 ms (Local CPU) / 3,000–5,000 ms (3D Prop) |
 | **Naive Baseline** | **Majority Class** | 0.5000 ± 0.0000 | 0.2512 ± 0.0006 | 0.7488 ± 0.0006 | 0.0000 ± 0.0000 | 0.1881 ± 0.0003 | 0.0003 ± 0.0006 | < 0.05 ms |
 | **Stochastic Model** | **Markov Chain (MC)** | 0.5777 ± 0.0197 | 0.2849 ± 0.0091 | 0.7488 ± 0.0006 | 0.0000 ± 0.0000 | 0.1830 ± 0.0028 | 0.0179 ± 0.0118 | < 0.10 ms |
 | **Statistical Model** | **Autoregressive / ARIMA** | 0.7838 ± 0.0481 | 0.6351 ± 0.0828 | 0.7308 ± 0.0384 | 0.5750 ± 0.0544 | 0.1835 ± 0.0242 | 0.1917 ± 0.0335 | < 0.15 ms |
@@ -180,9 +182,12 @@ Measured median CPU latencies at batch size 1 are:
 
 The $0.3\text{--}0.5\text{ ms}$ difference between RetNet, HistGB, and Transformer is within framework overhead. For short sequences ($L \le 14$), quadratic attention costs only $14^2 = 196$ dot products per head, so $O(L^2)$ attention is not an operational bottleneck at this scale.
 
-### 6.3 Limitations
-1. **Single-Epoch Observation Window:** The Space-Track CDMs fall within a concentrated observational window, leaving generalization across different solar storm cycles unexamined.
-2. **Exclusion Volume Feature:** `SAT1_EXCL_VOL` appears with high permutation importance in tree models. Because exclusion volume is an input in Space-Track's internal $P_c$ calculation, its predictive value partly reflects the physical definition of the target label.
+### 6.3 Limitations & Boundary Conditions
+1. **Absence of Full B-Plane Covariance in Public CDMs:** Space-Track public CDMs omit the full 2x2 B-plane covariance matrix. To establish a standardized numerical baseline, an isotropic scale $\sigma$ was calibrated against catalog $P_c$. In 71% of high-risk encounters, achieving the catalog $P_c$ within an isotropic Gaussian required inflating the hard-body radius beyond physical dimensions (median inflation $3.8\times$), reflecting the physical reality that real-world encounters feature highly elongated, anisotropic covariances along the orbit track. Consequently, Monte Carlo simulations in this pipeline serve as numerical integration sampling verification of the calibrated Gaussian, not independent orbit determination.
+2. **Collision Avoidance Maneuver (CAM) Heuristic:** The CAM module in `orbit_guard.py` implements a linearized Clohessy-Wiltshire along-track secular drift calculation for illustrative mission-control demonstration. Real-world flight operations strictly require high-fidelity numerical ephemeris propagation (including $J_{70,70}$ gravity, atmospheric drag covariance, SRP), attitude slew constraints, thruster dispersion budgets, and mandatory catalog-wide secondary conjunction screening to ensure maneuvers do not induce secondary collisions.
+3. **Sequence Length Sparsity:** In our 836-encounter catalog, 59.5% of events contain only 1 to 3 CDM updates. Sequence models (RetNet and Transformer) have minimal temporal context to leverage, allowing tabular tree ensembles on summary statistics to dominate discriminative performance.
+4. **Single-Epoch Observation Window:** The Space-Track CDMs fall within a concentrated observational window, leaving generalization across different solar storm cycles unexamined.
+5. **Exclusion Volume Feature Importance:** `SAT1_EXCL_VOL` appears with high permutation importance in tree models. Because exclusion volume is an input in Space-Track's internal $P_c$ calculation, its predictive value partly reflects the physical definition of the target label, contributing to the 18-point drop observed when evaluating on unseen satellites.
 
 ---
 

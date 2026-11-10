@@ -100,6 +100,8 @@ def step_5_package_bundle():
     os.makedirs(RESULTS_DIR, exist_ok=True)
 
     files_to_pack = [
+        "AUDIT_REPORT.md",
+        "VALIDATION_REPORT.md",
         "RESEARCH_PAPER.md",
         "research_paper.tex",
         "research_paper.docx",
@@ -114,6 +116,10 @@ def step_5_package_bundle():
         "src/operational_metrics.py",
         "src/data_processing.py",
         "src/config.py",
+        "tests/test_mathematical_validation.py",
+        "tests/test_monte_carlo_engine.py",
+        "tests/test_forecaster_shapes.py",
+        "tests/test_packing.py",
         "results/monte_carlo_vs_surrogate_benchmark.json",
         "figures/fig1_unified_roc_pr_curves.png",
         "figures/fig1_unified_roc_pr_curves.pdf",

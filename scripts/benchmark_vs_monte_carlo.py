@@ -17,6 +17,8 @@ from __future__ import annotations
 import argparse
 import json
 import os
+os.environ["LOKY_MAX_CPU_COUNT"] = "1"
+os.environ["OMP_NUM_THREADS"] = "1"
 import sys
 import time
 

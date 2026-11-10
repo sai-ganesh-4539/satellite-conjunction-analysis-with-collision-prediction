@@ -101,6 +101,11 @@ def project_rtn_covariance_to_bplane(cov_rtn: np.ndarray, v_rel_rtn: np.ndarray)
     """
     c = np.asarray(cov_rtn, dtype=float).reshape(3, 3)
     v = np.asarray(v_rel_rtn, dtype=float).reshape(3)
+    if not np.all(np.isfinite(c)):
+        raise ValueError("cov_rtn contains non-finite values")
+    if not np.all(np.isfinite(v)):
+        raise ValueError("v_rel_rtn contains non-finite values")
+    c = 0.5 * (c + c.T)
     nrm = np.linalg.norm(v)
     if nrm < 1e-12:
         raise ValueError("relative velocity is zero; the B-plane is undefined")
@@ -109,10 +114,13 @@ def project_rtn_covariance_to_bplane(cov_rtn: np.ndarray, v_rel_rtn: np.ndarray)
     xi = radial - np.dot(radial, h) * h
     if np.linalg.norm(xi) < 1e-8:
         xi = np.array([0.0, 1.0, 0.0]) - np.dot(np.array([0.0, 1.0, 0.0]), h) * h
+    if np.linalg.norm(xi) < 1e-8:
+        xi = np.array([0.0, 0.0, 1.0]) - np.dot(np.array([0.0, 0.0, 1.0]), h) * h
     xi = xi / np.linalg.norm(xi)
     zeta = np.cross(h, xi)
     basis = np.stack([xi, zeta], axis=0)  # (2, 3)
-    return basis @ c @ basis.T
+    proj = basis @ c @ basis.T
+    return 0.5 * (proj + proj.T)
 
 
 def _principal_axes(mu: np.ndarray, cov: np.ndarray):
@@ -500,7 +508,13 @@ def recommend_cam(
         "direction": "prograde or retrograde (sign not observable in this extract)" if dv > 0 else "no burn",
         "safe_miss_m": float(safe_miss_m),
         "gap_m": float(gap),
-        "assumption": "Clohessy-Wiltshire secular drift: along-track separation ≈ 3 * delta_v * t",
+        "assumption": "Linearized Clohessy-Wiltshire secular drift: along-track separation ≈ 3 * delta_v * t",
+        "is_operational_certified": False,
+        "disclaimer": (
+            "DEMONSTRATION HEURISTIC ONLY. Not certified for flight operations. "
+            "Real avoidance maneuvers require full 6-DOF numerical ephemeris propagation, "
+            "post-maneuver covariance growth modeling, and catalog-wide secondary conjunction screening."
+        ),
     }
 
 
