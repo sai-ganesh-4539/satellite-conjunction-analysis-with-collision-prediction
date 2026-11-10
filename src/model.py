@@ -271,3 +271,22 @@ class TransformerBaseline(nn.Module):
 
 def count_parameters(model: nn.Module) -> int:
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+
+class FocalLoss(nn.Module):
+    """Focal Loss for binary collision triage classification under class imbalance."""
+    def __init__(self, alpha: float = 0.75, gamma: float = 2.0):
+        super().__init__()
+        self.alpha = alpha
+        self.gamma = gamma
+
+    def forward(self, logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+        logits = logits.squeeze(-1)
+        targets = targets.float()
+        bce = F.binary_cross_entropy_with_logits(logits, targets, reduction="none")
+        probs = torch.sigmoid(logits)
+        pt = probs * targets + (1.0 - probs) * (1.0 - targets)
+        focal_weight = (1.0 - pt) ** self.gamma
+        alpha_weight = self.alpha * targets + (1.0 - self.alpha) * (1.0 - targets)
+        return (alpha_weight * focal_weight * bce).mean()
+

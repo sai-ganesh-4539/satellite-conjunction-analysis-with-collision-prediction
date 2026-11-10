@@ -37,9 +37,8 @@ from config import (  # noqa: E402
 from data_processing import (  # noqa: E402
     DEFAULT_DATA_CSV, DEFAULT_SATCAT_CSV, FEATURE_NAMES, load_and_merge_cdms, satellite_components,
 )
-from model import RetNetForCollisionPrediction, TransformerBaseline  # noqa: E402
+from model import FocalLoss, RetNetForCollisionPrediction, TransformerBaseline  # noqa: E402
 from monte_carlo_engine import PC_CRITICAL, PC_SAFE, safety_class  # noqa: E402
-from run_pipeline import FocalLoss  # noqa: E402
 
 MODEL_DIR = os.path.join(REPO_ROOT, "results", "models")
 N_SUMMARY = 14 * 5 + 1  # 71

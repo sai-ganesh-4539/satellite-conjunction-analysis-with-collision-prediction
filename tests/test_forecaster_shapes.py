@@ -10,7 +10,7 @@ import torch
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from collision_forecaster import MultiTargetForecaster, multitask_loss, summarize_71
-from run_pipeline import FocalLoss
+from model import FocalLoss
 
 
 class ForecasterShapeTests(unittest.TestCase):

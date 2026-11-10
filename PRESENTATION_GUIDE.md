@@ -9,7 +9,7 @@
 >
 > *In our project, we evaluated machine learning triage classifiers on 836 real satellite encounters from Space-Track.org, enriched with 14 orbital mechanics features from the Satellite Catalog (SATCAT). We evaluated a full hierarchy of models: stochastic Markov Chains, statistical ARIMA/autoregressive models, Logistic Regression, Random Forest, HistGradientBoosting, Standard Transformer, and Microsoft's Retentive Network (RetNet).*
 >
-> *Under a unified 5-fold cross-validation protocol, tabular Gradient Boosting achieved the highest discriminative performance ($\text{AUC} = 0.909$). We discovered that 59.5% of conjunction encounters contain only 1 to 3 CDM updates, where static orbital geometry dominates and sequence models offer no advantage ($\text{AUC} \approx 0.751\text{--}0.831$). In an operational triage pipeline, Gradient Boosting safely screens out 65.4% of candidate encounters at ~84.3% safety recall. Furthermore, when audited under strict zero-satellite overlap (Union-Find component grouping), tree models drop from 0.954 to 0.777, revealing that trees partially rely on static satellite identity features, whereas regularized linear models maintain solid generalization ($0.823 \pm 0.051$)."*
+> *Under a unified 5-fold cross-validation protocol, tabular Gradient Boosting achieved the highest discriminative performance ($\text{AUC} = 0.909$). We discovered that 59.5% of conjunction encounters contain only 1 to 3 CDM updates, where static orbital geometry dominates and sequence models offer no advantage ($\text{AUC} \approx 0.816\text{--}0.852$). In an operational triage pipeline, Gradient Boosting safely screens out 65.4% of candidate encounters at ~84.3% safety recall. Furthermore, when audited under strict zero-satellite overlap (Union-Find component grouping), tree models drop from 0.954 to 0.777, revealing that trees partially rely on static satellite identity features, whereas regularized linear models maintain solid generalization ($0.823 \pm 0.051$)."*
 
 ---
 
@@ -78,7 +78,7 @@
 | **RetNet Surrogate (Ours)**| Deep Surrogate | 0.7506 ± 0.0484 | 0.5349 ± 0.0722 | 0.7308 ± 0.0251 | 0.1819 ± 0.0178 | 0.1466 ± 0.0296 | **1.210 ms** |
 
 - **What to Say:**
-  > *"Looking at Table 1 across our 5 cross-validation folds, tabular gradient boosting achieves the highest overall discriminative performance at 0.909 AUC and 0.812 Average Precision. The Standard Transformer achieves 0.831 AUC, while RetNet achieves 0.751 AUC. A paired t-test ($p = 0.0173$) confirms a statistically significant difference favoring the Transformer on this dataset, because softmax attention sharpens focus on isolated radar updates compared to unnormalized linear retention."*
+  > *"Looking at Table 1 across our 5 cross-validation folds, tabular gradient boosting achieves the highest overall discriminative performance at 0.909 AUC and 0.812 Average Precision. The Standard Transformer achieves 0.852 AUC, while RetNet achieves 0.816 AUC. A paired t-test ($p = 0.0745$) reflects an empirical trend favoring Transformer attention on sparse updates, though not statistically significant at alpha = 0.05, because softmax attention sharpens focus on isolated radar updates compared to unnormalized linear retention."*
 
 ---
 
@@ -161,7 +161,7 @@
 
 ### Q3: *"Did RetNet beat the Transformer?"*
 **Answer:**
-> *"No, Madam. Under unified 5-fold cross-validation, the Transformer achieves $0.831 \pm 0.037$ AUC while RetNet achieves $0.751 \pm 0.048$ AUC, with a paired t-test showing $p = 0.0173$. The Transformer's softmax attention allows it to focus sharply on the single critical update where miss distance dropped, whereas linear retention without softmax spreads attention more evenly. However, RetNet has 32.6% fewer parameters and executes with $O(1)$ constant memory in $1.21\text{ ms}$, which is critical for flight avionics."*
+> *"No, Madam. Under unified 5-fold cross-validation, the Transformer achieves $0.852 \pm 0.037$ AUC while RetNet achieves $0.816 \pm 0.048$ AUC, with a paired t-test showing $p = 0.0745$. The Transformer's softmax attention allows it to focus sharply on the single critical update where miss distance dropped, whereas linear retention without softmax spreads attention more evenly. However, RetNet has 32.6% fewer parameters and executes with $O(1)$ constant memory in $1.21\text{ ms}$, which is critical for flight avionics."*
 
 ### Q4: *"What did your Grouped Cross-Validation audit discover?"*
 **Answer:**

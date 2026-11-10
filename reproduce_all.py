@@ -65,8 +65,19 @@ def step_2_run_tests():
 
 def step_3_run_benchmark():
     print("\n" + "=" * 70)
-    print("STEP 3: RUNNING MONTE CARLO VS. SURROGATE BENCHMARK")
+    print("STEP 3: RUNNING MONTE CARLO & GROUPED CV BENCHMARKS")
     print("=" * 70)
+    # 1. Execute multi-seed grouped cross-validation audit
+    print("  -> Executing 3-seed 5-fold grouped CV leakage audit (836 events)...")
+    cmd_gcv = [sys.executable, "grouped_cv_check.py", "--seeds", "3"]
+    res_gcv = subprocess.run(cmd_gcv, cwd=REPO_ROOT, capture_output=True, text=True)
+    if res_gcv.returncode != 0:
+        print(res_gcv.stderr)
+        raise RuntimeError("Grouped CV audit failed!")
+    print("  [OK] Grouped CV leakage audit completed successfully.")
+
+    # 2. Execute Monte Carlo vs Surrogate benchmark
+    print("  -> Executing Monte Carlo vs. Surrogate benchmark (100 events, 10^6 particles)...")
     cmd = [
         sys.executable, "scripts/benchmark_vs_monte_carlo.py",
         "--n-events", "100", "--mc-samples", "1000000", "--epochs", "8"
@@ -100,27 +111,52 @@ def step_5_package_bundle():
     os.makedirs(RESULTS_DIR, exist_ok=True)
 
     files_to_pack = [
-        "AUDIT_REPORT.md",
-        "VALIDATION_REPORT.md",
+        # Documentation & Audit Reports
+        "README.md",
         "RESEARCH_PAPER.md",
         "research_paper.tex",
         "research_paper.docx",
+        "AUDIT_REPORT.md",
+        "VALIDATION_REPORT.md",
+        "FINAL_INDEPENDENT_REVIEW.md",
         "PRESENTATION_GUIDE.md",
-        "README.md",
-        "orbit_guard.py",
-        "grouped_cv_check.py",
-        "reproduce_all.py",
+        "DATASET_RETRIEVAL.md",
+        "LICENSE",
+        "requirements.txt",
+
+        # Core Library Source Code (src/)
         "src/model.py",
         "src/monte_carlo_engine.py",
         "src/collision_forecaster.py",
         "src/operational_metrics.py",
         "src/data_processing.py",
         "src/config.py",
+
+        # Executable Scripts & Pipelines
+        "run_pipeline.py",
+        "orbit_guard.py",
+        "grouped_cv_check.py",
+        "reproduce_all.py",
+        "download_cdms.py",
+        "scripts/benchmark_vs_monte_carlo.py",
+        "scripts/generate_publication_figures.py",
+
+        # Unit & Astrodynamic Tests
         "tests/test_mathematical_validation.py",
         "tests/test_monte_carlo_engine.py",
         "tests/test_forecaster_shapes.py",
         "tests/test_packing.py",
+
+        # Verified Benchmark Artifacts
+        "results/benchmark_unified_cv.json",
         "results/monte_carlo_vs_surrogate_benchmark.json",
+        "results/grouped_cv_leakage_audit.json",
+
+        # Standalone Datasets for Zero-Dependency Reproducibility
+        "data/cdms.csv",
+        "data/satcat.csv",
+
+        # High-Resolution Publication Figures
         "figures/fig1_unified_roc_pr_curves.png",
         "figures/fig1_unified_roc_pr_curves.pdf",
         "figures/fig2_calibration_reliability.png",

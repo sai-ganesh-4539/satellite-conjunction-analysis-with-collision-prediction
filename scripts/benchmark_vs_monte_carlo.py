@@ -226,9 +226,35 @@ def run(n_events: int, mc_samples: int, epochs: int, seed: int, retrain: bool) -
 
     print("Component-grouped tabular audit...")
     audit = grouped_audit(batch, seed=seed)
-    # Paired test on the five component-grouped folds, HistGB vs LogReg.
-    h = audit["group_component"]["HistGradientBoosting"]["folds"]
-    lin = audit["group_component"]["LogReg"]["folds"]
+    audit_file = os.path.join(REPO_ROOT, "results", "grouped_cv_leakage_audit.json")
+    full_audit_payload = None
+    if os.path.exists(audit_file):
+        try:
+            with open(audit_file, "r", encoding="utf-8") as f:
+                full_audit_payload = json.load(f)
+        except Exception:
+            pass
+
+    if full_audit_payload and "with_length_features" in full_audit_payload:
+        comp_schemes = full_audit_payload["with_length_features"]["schemes"]["group_component"]
+        h = comp_schemes["HistGB"]["fold_aucs"]
+        lin = comp_schemes["LogReg"]["fold_aucs"]
+        grouped_cv_export = {
+            scheme: {
+                m: {
+                    "auc_mean": dat["auc_mean"],
+                    "auc_std": dat["auc_std"],
+                    "folds": dat["fold_aucs"]
+                }
+                for m, dat in mdict.items()
+            }
+            for scheme, mdict in full_audit_payload["with_length_features"]["schemes"].items()
+        }
+    else:
+        h = audit["group_component"]["HistGradientBoosting"]["folds"]
+        lin = audit["group_component"]["LogReg"]["folds"]
+        grouped_cv_export = audit
+
     paired = {}
     if len(h) == len(lin) and len(h) >= 2:
         t_stat, p_value = ttest_rel(h, lin)
@@ -293,7 +319,9 @@ def run(n_events: int, mc_samples: int, epochs: int, seed: int, retrain: bool) -
         "heldout_regression": heldout_metrics,
         "agreement": agreement,
         "latency_ms": latency,
-        "grouped_cv": audit,
+        "grouped_cv": grouped_cv_export,
+        "grouped_cv_leakage_audit_metadata": full_audit_payload.get("metadata") if full_audit_payload else None,
+        "prefix_forecast_grouped_cv_1seed_641events": audit,
         "paired_tests": paired,
         "horizon": horizons,
         "calibration": {k: {kk: vv for kk, vv in d.items() if kk not in ("y", "prob")}

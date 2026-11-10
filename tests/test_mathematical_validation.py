@@ -242,6 +242,18 @@ class TestMonteCarloAndConfidenceBands(unittest.TestCase):
         self.assertEqual(w_hi, 1.0)
         self.assertEqual(c_hi, 1.0)
 
+    def test_clopper_pearson_vs_wilson_boundary_property(self):
+        """Demonstrate that Clopper-Pearson guaranteed coverage does not imply geometric subset inclusion at boundaries.
+        Specifically, for k=0 (zero hits), Wilson's upper bound can slightly exceed Clopper-Pearson's upper bound.
+        """
+        n, k = 50, 0
+        w_lo, w_hi = wilson_interval(k, n)
+        c_lo, c_hi = clopper_pearson_interval(k, n)
+        self.assertEqual(w_lo, 0.0)
+        self.assertEqual(c_lo, 0.0)
+        # Wilson upper bound is ~0.07135, Clopper-Pearson upper bound is ~0.07112
+        self.assertGreater(w_hi, c_hi)
+
 
 class TestIsotropicScaleInversion(unittest.TestCase):
     """Validation of isotropic scale solver and radius inflation logic."""

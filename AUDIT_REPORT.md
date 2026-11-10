@@ -43,7 +43,7 @@ All 33 automated tests in `tests/` pass with zero failures. Critical scientific 
 ## 3. Detailed Audit Findings & Scientific Resolutions
 
 ### 3.1 Critical Finding 1: The Isotropic Covariance Inversion & Monte Carlo Circularity
-- **The Issue:** Public Space-Track CDMs provide scalar miss distance and catalog $P_c$, but omit the 2x2 B-plane covariance matrix. The system inverts an isotropic $\sigma$ so that the analytical 2D Gaussian integral matches the catalog $P_c$. Monte Carlo sampling then draws from this fitted distribution and confirms agreement with catalog $P_c$ ($R^2 \approx 0.94$).
+- **The Issue:** Public Space-Track CDMs provide scalar miss distance and catalog $P_c$, but omit the 2x2 B-plane covariance matrix. The system inverts an isotropic $\sigma$ so that the analytical 2D Gaussian integral matches the catalog $P_c$. Monte Carlo sampling then draws from this fitted distribution and confirms numerical quadrature agreement with the analytical formula (93% of analytical points lie within the Wilson 95% confidence interval). Direct regression of log10(Pc) yields R2 <= 0.034 for Transformer and negative for RetNet due to unobserved covariance evolution.
 - **Scientific Impact:** Presenting Monte Carlo agreement as an "independent validation of collision probability" is scientifically invalid. Monte Carlo is sampling the distribution that was explicitly calibrated to match the target. It verifies the **numerical integration accuracy**, NOT an independent physical orbit determination.
 - **Resolution:**
   1. Updated all docstrings in `src/monte_carlo_engine.py` and `scripts/benchmark_vs_monte_carlo.py`.
@@ -71,8 +71,8 @@ All 33 automated tests in `tests/` pass with zero failures. Critical scientific 
 - **The Issue:** Previous reports sought to position deep sequence models (RetNet / Transformer) as superior to tabular tree ensembles.
 - **Audit Reality:**
   - On the 836 Space-Track encounters, HistGradientBoosting achieves **0.9086 AUC** and Random Forest achieves **0.9050 AUC**.
-  - Standard Transformer achieves **0.8307 AUC**, and RetNet achieves **0.7506 AUC**.
-  - Paired two-tailed $t$-test confirms Transformer significantly outperforms RetNet on sparse sequences ($t = -3.914, p = 0.0173$), and HistGB significantly outperforms RetNet ($t = -8.771, p = 0.0009$).
+  - Standard Transformer achieves **0.8524 ± 0.0264 AUC**, and RetNet achieves **0.8155 ± 0.0362 AUC** (unified 5-fold CV).
+  - Paired two-tailed $t$-test yields $t = -2.398, p = 0.0745$ (not statistically significant at α = 0.05). Furthermore, standard k-fold CV violates sample independence (Dietterich 1998, 75% training overlap), so this difference represents an empirical trend favoring softmax attention on sparse sequences rather than a proven universal inequality. HistGB significantly outperforms RetNet on tabular summaries ($t = -8.771, p = 0.0009$).
   - However, under strict graph-component cross-validation with zero satellite overlap between train and test, tree models drop by 18 points (0.954 to 0.777) due to memorization of static satellite attributes, while regularized linear models maintain solid generalization ($0.823 \pm 0.051$).
 - **Resolution:** All papers, documentation, and reports present these results transparently, highlighting the exact boundary conditions where tabular and sequence architectures excel.
 

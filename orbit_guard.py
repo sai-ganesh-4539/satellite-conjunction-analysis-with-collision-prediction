@@ -1,12 +1,13 @@
 """
-orbit_guard.py — Operational Mission-Control CLI & Satellite Conjunction Assessment Tool
+orbit_guard.py — Satellite Conjunction Assessment Research CLI & Verification Tool
 
-Interactive flight safety tool for satellite operators and mission control:
-  1. Streams sequential Conjunction Data Messages (CDMs) as they arrive pre-TCA.
+Interactive demonstration and verification tool for satellite conjunction assessment:
+  1. Streams sequential Conjunction Data Messages (CDMs) pre-TCA.
   2. Runs real-time AI surrogate risk forecasting (predicted miss distance, peak Pc,
      and safety triage classification in under 2 milliseconds).
-  3. Validates against 1,000,000-sample B-plane Monte Carlo ground truth.
-  4. Computes actionable Collision Avoidance Maneuver (CAM) Delta-V recommendations.
+  3. Validates against 1,000,000-sample B-plane Monte Carlo integration.
+  4. Computes demonstration Collision Avoidance Maneuver (CAM) Delta-V heuristics
+     (linearized Clohessy-Wiltshire secular drift; NOT flight certified).
 
 Usage:
   python orbit_guard.py --demo
@@ -41,7 +42,7 @@ from collision_forecaster import (
 )
 from monte_carlo_engine import (
     bplane_miss, hard_body_radius, invert_isotropic_scale, isotropic_covariance,
-    isotropic_pc, monte_carlo_pc, PC_CRITICAL, PC_SAFE, safety_class,
+    isotropic_pc, monte_carlo_pc, recommend_cam, PC_CRITICAL, PC_SAFE, safety_class,
 )
 
 
@@ -55,9 +56,18 @@ def compute_cam_recommendation(
     """Computes basic impulsive collision avoidance maneuver (CAM) parameters.
 
     In LEO circular orbits (approx 550 km), an along-track (prograde/retrograde)
-    burn delta-V is the most fuel-efficient way to change in-track separation at TCA.
-    Delta-s ~= 3 * pi * (delta_v / v_orb) * a * (number of orbits).
-    For delta_t = 24-48 hours, approx 0.05 to 0.3 m/s achieves 3 to 10 km clearance.
+    burn delta-V produces secular along-track drift via the linearized
+    Clohessy-Wiltshire (CW) equations:
+        Δy(t) ≈ -3 * Δv_t * t
+    This implementation aligns with ``recommend_cam`` in ``monte_carlo_engine.py``:
+        |Δv_t| ≈ gap / (3 * t)
+
+    IMPORTANT NOTICE:
+    Both this implementation and ``monte_carlo_engine.recommend_cam`` are simplified
+    demonstration heuristics for research only. They assume unperturbed circular motion
+    and omit J2/J3 geopotential harmonics, atmospheric drag dispersion, and secondary
+    conjunction screening. They are NOT certified flight software and are not
+    interchangeable with full numerical trajectory optimization.
     """
     disclaimer_str = (
         "DEMONSTRATION HEURISTIC ONLY: Computed via linearized along-track Clohessy-Wiltshire "
@@ -65,40 +75,40 @@ def compute_cam_recommendation(
         "full 6-DOF numerical ephemeris propagation, thruster dispersion modeling, and "
         "catalog-wide secondary conjunction screening."
     )
+    horizon_s = max(3600.0, time_to_tca_hours * 3600.0)
+    gap_m = max(0.0, target_clearance_m - miss_distance_m)
+    dv_cw = gap_m / (3.0 * horizon_s) if gap_m > 0 else 0.0
+
     if predicted_pc < PC_SAFE:
         return {
-            "status": "SAFE / MONITOR",
+            "status": "SAFE / NOMINAL",
             "action_required": False,
             "delta_v_ms": 0.0,
             "burn_window": "None required",
             "direction": "N/A",
-            "message": "Encounter probability is well below safety screening threshold (Pc < 1e-5). Maintain nominal tracking.",
+            "message": "Encounter probability is below safety screening threshold (Pc < 1e-5). Maintain nominal tracking.",
             "is_operational_certified": False,
             "disclaimer": disclaimer_str,
         }
     elif predicted_pc < PC_CRITICAL:
         return {
-            "status": "ELEVATED CONJUNCTION RISK",
+            "status": "ELEVATED RISK / ACTIVE MONITORING",
             "action_required": False,
-            "delta_v_ms": 0.025,
-            "burn_window": f"Prepare standby burn plan for T - {min(24.0, time_to_tca_hours/2):.0f}h",
-            "direction": "Prograde (+V) or Retrograde (-V)",
-            "message": "[DEMO HEURISTIC] Close monitoring required. Covariance dispersion elevated. Prepare avoidance sequence if next update confirms escalation.",
+            "delta_v_ms": 0.0,
+            "burn_window": f"Contingency planning window: T - {min(24.0, time_to_tca_hours/2):.0f}h if risk escalates",
+            "direction": "Standby (prograde or retrograde if escalation occurs)",
+            "message": "[RESEARCH DEMO] Conjunction risk elevated (1e-5 <= Pc < 5e-4). Operator protocol: monitor incoming radar updates and prepare contingency burn plan. No physical maneuver is executed at this stage.",
             "is_operational_certified": False,
             "disclaimer": disclaimer_str,
         }
     else:
-        # Critical encounter: calculate required delta-V to achieve target clearance (e.g. 5 km)
-        deficit_m = max(0.0, target_clearance_m - miss_distance_m)
-        lead_time_days = max(0.5, time_to_tca_hours / 24.0)
-        est_dv = max(0.08, float(deficit_m / (15000.0 * lead_time_days)))
         return {
-            "status": "CRITICAL RISK: COLLISION AVOIDANCE MANEUVER REQUIRED",
+            "status": "CRITICAL RISK: MITIGATION ANALYSIS RECOMMENDED",
             "action_required": True,
-            "delta_v_ms": round(est_dv, 3),
-            "burn_window": f"EXECUTE AT T - 24 HOURS (Lead time: {time_to_tca_hours:.1f}h available)",
-            "direction": "Optimal Along-Track (Prograde +V)",
-            "message": f"[DEMO HEURISTIC] Probability exceeds 5e-4 threshold. Heuristic along-track burn estimate: ~{est_dv:.3f} m/s to clear 5.0 km. MUST BE VERIFIED WITH HIGH-FIDELITY PROPAGATION.",
+            "delta_v_ms": round(float(dv_cw), 4),
+            "burn_window": f"Candidate burn window at T - {min(24.0, time_to_tca_hours):.0f}h (Lead time: {time_to_tca_hours:.1f}h available)",
+            "direction": "Along-Track (prograde or retrograde; sign depends on in-plane relative geometry)",
+            "message": f"[RESEARCH DEMO] Probability exceeds 5e-4 threshold. Linearized Clohessy-Wiltshire along-track impulse: ~{dv_cw:.4f} m/s to achieve {target_clearance_m/1000:.1f} km nominal clearance. DEMONSTRATION HEURISTIC ONLY: Must be verified with high-fidelity 6-DOF orbit propagation.",
             "is_operational_certified": False,
             "disclaimer": disclaimer_str,
         }
@@ -106,7 +116,7 @@ def compute_cam_recommendation(
 
 def format_banner():
     print("=" * 80)
-    print("      ORBIT-GUARD: SATELLITE CONJUNCTION ASSESSMENT & FLIGHT SAFETY SYSTEM")
+    print("      ORBIT-GUARD: SATELLITE CONJUNCTION ASSESSMENT RESEARCH CLI")
     print("      AI Surrogate vs. 1,000,000-Sample Monte Carlo Astrodynamics Engine")
     print("      *** FLIGHT SAFETY NOTICE: DEMONSTRATION & RESEARCH TOOL ONLY ***")
     print("=" * 80)
@@ -222,7 +232,7 @@ def stream_encounter(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="ORBIT-GUARD: Satellite Conjunction Assessment Flight System")
+    parser = argparse.ArgumentParser(description="ORBIT-GUARD: Satellite Conjunction Assessment Research CLI & Surrogate Verification")
     parser.add_argument("--event-id", type=int, default=None, help="Encounter event index (0 to 835)")
     parser.add_argument("--demo", action="store_true", help="Run high-risk demo encounter")
     parser.add_argument("--mc-samples", type=int, default=1000000, help="Number of Monte Carlo samples")

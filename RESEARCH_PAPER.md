@@ -125,7 +125,7 @@ Features at each observation step include:
 ---
 
 ### Table 3: Satellite Overlap Audit (Grouped Cross-Validation)
-To evaluate sensitivity to satellite identity leakage, models were benchmarked across four split schemes across 3 random seeds:
+To evaluate sensitivity to satellite identity leakage, models were benchmarked across four split schemes across 3 random seeds (seeds 0, 1, 2; 5 folds each = 15 test folds total). Evaluated on 836 conjunction events using 58 summary features (last, mean, min, max across 14 channels, plus range trend and CDM count). Complete fold-level artifacts are saved in `results/grouped_cv_leakage_audit.json`:
 
 | Grouping Scheme | Leakage Constraint | HistGradientBoosting AUC | Random Forest AUC | Logistic Regression AUC |
 | :--- | :--- | :---: | :---: | :---: |
@@ -172,13 +172,13 @@ Across the 5 outer test folds:
 - **Why Softmax Attention Outperforms Linear Matrix Retention on Sparse CDMs:** In Sun et al. (2023), retention uses linear decay-weighted dot products without softmax normalization across timesteps:
   $$o_n = \sum_{i \le n} \gamma^{n-i} (q_n \cdot k_i) v_i$$
   In dense, long natural language contexts ($L > 1024$), decaying linear attention excels. However, in satellite conjunctions, sequences are extremely short (median 3 CDMs, maximum 14), with sporadic updates separated by 12–24 hours. Under these conditions, the Transformer's bounded softmax normalization $\text{softmax}(QK^T / \sqrt{d})$ provides critical sharpening, allowing the model to focus sharply on the single critical update where miss distance dropped precipitously.
-- **RetNet's Trade-Off:** While RetNet has lower discrimination on sparse short tracks ($0.751$ vs $0.831$), it retains 32.6% fewer parameters (104,801 vs 155,201) and constant $O(1)$ memory, making it well-suited for streaming edge hardware on flight avionics.
+- **RetNet's Trade-Off:** While RetNet has lower discrimination on sparse short tracks ($0.8155$ vs $0.8524$), it retains 32.6% fewer parameters (104,801 vs 155,201) and constant $O(1)$ memory, making it well-suited for streaming edge hardware on flight avionics.
 
 ### 6.2 Latency and Computational Complexity
 Measured median CPU latencies at batch size 1 are:
-- RetNet Recurrent: $1.210\text{ ms}$
+- RetNet Recurrent: $1.206\text{ ms}$
 - HistGradientBoosting: $1.557\text{ ms}$
-- Standard Transformer: $1.728\text{ ms}$
+- Standard Transformer: $1.388\text{ ms}$
 - Random Forest: $7.772\text{ ms}$
 
 The $0.3\text{--}0.5\text{ ms}$ difference between RetNet, HistGB, and Transformer is within framework overhead. For short sequences ($L \le 14$), quadratic attention costs only $14^2 = 196$ dot products per head, so $O(L^2)$ attention is not an operational bottleneck at this scale.

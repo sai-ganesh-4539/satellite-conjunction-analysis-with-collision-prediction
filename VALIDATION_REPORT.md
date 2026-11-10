@@ -194,9 +194,9 @@ $$S_n = \gamma S_{n-1} + k_n^T v_n, \quad o_n = q_n S_n$$
 where $S_n \in \mathbb{R}^{d \times d}$.
 
 **Audit Finding on Sparse Sequences:** Under 5-fold cross-validation on 836 encounters:
-- Transformer achieves $\text{AUC} = 0.8307 \pm 0.0369$.
-- RetNet achieves $\text{AUC} = 0.7506 \pm 0.0484$.
-- Paired two-tailed $t$-test: $t = -3.914, p = 0.0173$.
+- Transformer achieves $\text{AUC} = 0.8524 \pm 0.0264$.
+- RetNet achieves $\text{AUC} = 0.8155 \pm 0.0362$.
+- Paired two-tailed $t$-test: $t = -2.398, p = 0.0745$ (empirical trend favoring softmax attention on sparse tracks, but not statistically significant at $\alpha = 0.05$; standard $k$-fold CV violates sample independence per Dietterich 1998).
 **Explanation:** On extremely sparse sequences (median 3 updates), bounded softmax attention $\text{softmax}(QK^T / \sqrt{d})$ provides critical sharpening on the single critical update where miss distance dropped, whereas unnormalized decaying linear retention exhibits dispersion.
 
 ### 7.3 Graph-Component Grouped Cross-Validation (Satellite Identity Leakage)
