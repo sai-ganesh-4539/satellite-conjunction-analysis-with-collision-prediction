@@ -234,9 +234,9 @@ def build_docx(output_path):
         t1.rows[0].cells[j].text = h
     rows_data_t1 = [
         ["Classical Physics", "Monte Carlo (10^6 particles)", "Reference", "Reference", "N/A", "N/A", "N/A", "N/A", "45.28 ms (Measured)"],
-        ["Naive Baseline", "Majority Class", "0.5000 +- 0.0000", "0.2512 +- 0.0006", "0.7488 +- 0.0006", "0.0000 +- 0.0000", "0.1881", "0.0003", "< 0.05 ms"],
-        ["Stochastic Model", "Markov Chain (MC)", "0.5777 +- 0.0197", "0.2849 +- 0.0091", "0.7488 +- 0.0006", "0.0000 +- 0.0000", "0.1830", "0.0179", "< 0.10 ms"],
-        ["Statistical Model", "Autoregressive / ARIMA", "0.7838 +- 0.0481", "0.6351 +- 0.0828", "0.7308 +- 0.0384", "0.5750 +- 0.0544", "0.1835", "0.1917", "< 0.15 ms"],
+        ["Naive Baseline", "Majority Class", "0.5000 +- 0.0000", "0.2512 +- 0.0006", "0.7488 +- 0.0006", "0.0000 +- 0.0000", "0.1881", "0.0003", "Not benchmarked"],
+        ["Stochastic Model", "Markov Chain (MC)", "0.5777 +- 0.0197", "0.2849 +- 0.0091", "0.7488 +- 0.0006", "0.0000 +- 0.0000", "0.1830", "0.0179", "Not benchmarked"],
+        ["Statistical Model", "Autoregressive / ARIMA", "0.7838 +- 0.0481", "0.6351 +- 0.0828", "0.7308 +- 0.0384", "0.5750 +- 0.0544", "0.1835", "0.1917", "Not benchmarked"],
         ["Linear Tabular", "Logistic Regression", "0.8424 +- 0.0299", "0.6700 +- 0.0653", "0.7727 +- 0.0436", "0.6107 +- 0.0396", "0.1602", "0.1449", "0.094 ms"],
         ["Tree Ensemble", "Random Forest (200 trees)", "0.9050 +- 0.0357", "0.7957 +- 0.0684", "0.8361 +- 0.0401", "0.6815 +- 0.0617", "0.1119", "0.1054", "11.19 ms"],
         ["Gradient Boosting", "HistGradientBoosting", "0.9086 +- 0.0226", "0.8121 +- 0.0439", "0.8744 +- 0.0296", "0.7361 +- 0.0714", "0.1028", "0.0950", "1.10 ms"],

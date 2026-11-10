@@ -35,6 +35,8 @@ import os
 os.environ["LOKY_MAX_CPU_COUNT"] = "1"
 os.environ["OMP_NUM_THREADS"] = "1"
 
+import argparse
+from datetime import datetime, timezone
 import hashlib
 import json
 import platform
@@ -397,7 +399,7 @@ def measure_canonical_latencies(models_dict, X_tab_sample, X_seq_sample, n_warmu
 
 # ─── Full 5-Fold Unified Cross-Validation ────────────────────────
 
-def run_unified_cross_validation(n_splits=5, epochs=40, seed=42):
+def run_unified_cross_validation(n_splits=5, epochs=40, seed=42, remeasure_latencies=False):
     train_path = os.path.join(PROCESSED_DIR, "train.pt")
     val_path = os.path.join(PROCESSED_DIR, "val.pt")
     test_path = os.path.join(PROCESSED_DIR, "test.pt")
@@ -650,15 +652,42 @@ def run_unified_cross_validation(n_splits=5, epochs=40, seed=42):
 
     # ── Standardized Canonical Latency Benchmark ──
     latency_file = os.path.join(RESULTS_DIR, "empirical_latency_benchmark.json")
-    if os.path.exists(latency_file):
+    if os.path.exists(latency_file) and not remeasure_latencies:
         with open(latency_file, "r", encoding="utf-8") as f:
             latencies = json.load(f)
-        print(f"Loaded existing canonical latency benchmark from: {latency_file}")
+        b_type = latencies.get("metadata", {}).get("benchmark_type", "canonical_frozen_reference")
+        print(f"Loaded existing latency benchmark artifact ({b_type}) from: {latency_file}")
     else:
+        print("\n" + "=" * 90)
+        print("MEASURING CANONICAL LATENCIES (10 warmup, 100 repeats, batch size 1, CPU)...")
+        print("=" * 90)
         latencies = measure_canonical_latencies(final_models_dict, sample_tab, sample_seq, n_warmup=10, n_repeats=100)
+        latencies["metadata"] = {
+            "benchmark_type": "fresh_runtime_measurement",
+            "status": "runtime_remeasured",
+            "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+            "source_revision": get_git_commit(),
+            "hardware_environment": {
+                "cpu": platform.processor(),
+                "machine": platform.machine(),
+                "os": f"{platform.system()} {platform.release()}",
+                "python_version": platform.python_version(),
+                "torch_version": torch.__version__,
+                "threads_used": 1,
+                "device": "cpu",
+            },
+            "measurement_protocol": {
+                "batch_size": 1,
+                "warmup_iterations": 10,
+                "measurement_repetitions": 100,
+                "disk_io_excluded": True,
+                "satcat_merging_excluded": True,
+                "single_encounter_inference": True,
+            },
+        }
         with open(latency_file, "w", encoding="utf-8") as f:
             json.dump(latencies, f, indent=2)
-        print(f"Saved canonical latency benchmark to: {latency_file}")
+        print(f"Saved freshly remeasured latency benchmark to: {latency_file}")
 
     # ── Compute Empirical Curves from Out-of-Fold Predictions ──
     y_true_all = oof_labels.astype(int)
@@ -783,7 +812,7 @@ def generate_markdown_report(summary, fold_differences, latencies):
     lines.append(f"| **Classical Physics** | **2D B-Plane Monte Carlo ($10^6$ particles)** | Reference | Reference | N/A | N/A | N/A | N/A | {mc_lat} (Measured) |")
 
     table_rows = [
-        ("Naive Baseline", "Majority Class", "Majority Class", "< 0.05 ms"),
+        ("Naive Baseline", "Majority Class", "Majority Class", "Not benchmarked"),
         ("Linear Tabular", "Logistic Regression", "Logistic Regression", lr_lat),
         ("Tree Ensemble", "Random Forest", "Random Forest", rf_lat),
         ("Gradient Boosting", "HistGradientBoosting", "HistGradientBoosting", gb_lat),
@@ -819,7 +848,19 @@ def generate_markdown_report(summary, fold_differences, latencies):
 
 
 def main():
-    run_unified_cross_validation(n_splits=5, epochs=40, seed=42)
+    parser = argparse.ArgumentParser(description="Unified 5-Fold Cross-Validation Benchmark")
+    parser.add_argument("--n-splits", type=int, default=5, help="Number of cross-validation folds")
+    parser.add_argument("--epochs", type=int, default=40, help="Training epochs for deep models")
+    parser.add_argument("--seed", type=int, default=42, help="Random seed")
+    parser.add_argument(
+        "--remeasure-latencies", action="store_true",
+        help="Force fresh measurement of single-core latencies instead of using frozen canonical benchmark"
+    )
+    args = parser.parse_args()
+    run_unified_cross_validation(
+        n_splits=args.n_splits, epochs=args.epochs, seed=args.seed,
+        remeasure_latencies=args.remeasure_latencies
+    )
 
 
 if __name__ == "__main__":

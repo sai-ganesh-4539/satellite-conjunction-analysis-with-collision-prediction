@@ -44,9 +44,9 @@ flowchart TD
 
     subgraph Models ["2. Multi-Target AI Forecasting"]
         MERGE --> PACK["Causal Dynamic Packing<br>(pack_real_first)"]
-        PACK --> RET["RetNet Surrogate<br>Multi-scale retention (0.66 ms)"]
-        PACK --> TRANS["Standard Transformer<br>Causal softmax attention (0.89 ms)"]
-        MERGE --> HGB["HistGradientBoosting<br>71 summary features (1.29 ms)"]
+        PACK --> RET["RetNet Surrogate<br>Multi-scale retention (0.57 ms)"]
+        PACK --> TRANS["Standard Transformer<br>Causal softmax attention (0.78 ms)"]
+        MERGE --> HGB["HistGradientBoosting<br>71 summary features (1.10 ms)"]
     end
 
     subgraph Engine ["3. Astrodynamics & Monte Carlo Engine"]
@@ -87,9 +87,9 @@ Evaluated across 836 real orbital encounters under a unified 5-fold cross-valida
 | Model Category | Model Architecture | ROC-AUC | PR-AUC (Average Precision) | Accuracy ($\tau=0.5$) | F1-Score ($\tau=0.5$) | Brier Score ($\downarrow$) | ECE ($\downarrow$) | Measured Latency (Single-Core CPU) |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 | **Classical Physics** | **Monte Carlo ($10^6$ particles)** | Reference | Reference | N/A | N/A | N/A | N/A | 45.28 ms (Measured) |
-| **Naive Baseline** | Majority Class | $0.5000 \pm 0.0000$ | $0.2512 \pm 0.0006$ | $0.7488 \pm 0.0006$ | $0.0000 \pm 0.0000$ | $0.1881$ | $0.0003$ | $< 0.05\text{ ms}$ |
-| **Stochastic** | Markov Chain (MC) | $0.5777 \pm 0.0197$ | $0.2849 \pm 0.0091$ | $0.7488 \pm 0.0006$ | $0.0000 \pm 0.0000$ | $0.1830$ | $\mathbf{0.0179}$ | $< 0.10\text{ ms}$ |
-| **Statistical** | ARIMA / Autoregressive | $0.7838 \pm 0.0481$ | $0.6351 \pm 0.0828$ | $0.7308 \pm 0.0384$ | $0.5750 \pm 0.0544$ | $0.1835$ | $0.1917$ | $< 0.15\text{ ms}$ |
+| **Naive Baseline** | Majority Class | $0.5000 \pm 0.0000$ | $0.2512 \pm 0.0006$ | $0.7488 \pm 0.0006$ | $0.0000 \pm 0.0000$ | $0.1881$ | $0.0003$ | Not benchmarked |
+| **Stochastic** | Markov Chain (MC) | $0.5777 \pm 0.0197$ | $0.2849 \pm 0.0091$ | $0.7488 \pm 0.0006$ | $0.0000 \pm 0.0000$ | $0.1830$ | $\mathbf{0.0179}$ | Not benchmarked |
+| **Statistical** | ARIMA / Autoregressive | $0.7838 \pm 0.0481$ | $0.6351 \pm 0.0828$ | $0.7308 \pm 0.0384$ | $0.5750 \pm 0.0544$ | $0.1835$ | $0.1917$ | Not benchmarked |
 | **Linear Tabular** | Logistic Regression (L2) | $0.8424 \pm 0.0299$ | $0.6700 \pm 0.0653$ | $0.7727 \pm 0.0436$ | $0.6107 \pm 0.0396$ | $0.1602$ | $0.1449$ | $\mathbf{0.094\text{ ms}}$ |
 | **Tree Ensemble** | Random Forest (200 trees) | $0.9050 \pm 0.0357$ | $0.7957 \pm 0.0684$ | $0.8361 \pm 0.0401$ | $0.6815 \pm 0.0617$ | $0.1119$ | $0.1054$ | $11.19\text{ ms}$ |
 | **Gradient Boost** | **HistGradientBoosting** | $\mathbf{0.9086 \pm 0.0226}$ | $\mathbf{0.8121 \pm 0.0439}$ | $\mathbf{0.8744 \pm 0.0296}$ | $\mathbf{0.7361 \pm 0.0714}$ | $\mathbf{0.1028}$ | $0.0950$ | $1.10\text{ ms}$ |
@@ -190,7 +190,7 @@ CONJUNCTION ENCOUNTER DOSSIER:
   --- Update #12/12 (TCA - 16.0h) ---
       * Latest Observed Miss:     1.6 m (Delta: -2.0 m)
       * RetNet Forecast at TCA:   Miss = 5.8 m | Pc = 1.48e-01 [CRITICAL ALERT]
-      * AI Inference Latency:     0.66 ms (RetNet) | 1.29 ms (HistGB)
+      * AI Inference Latency:     0.57 ms (RetNet) | 1.10 ms (HistGB) [canonical benchmark: 0.57 ms / 1.10 ms]
 
 ================================================================================
 NUMERICAL MONTE CARLO INTEGRATION BENCHMARK (1,000,000 B-Plane Particles)...

@@ -68,11 +68,11 @@
 
 | Model Architecture | Model Category | AUC-ROC | PR-AUC (Average Precision) | Test Accuracy ($\tau=0.5$) | Brier Score ($\downarrow$) | ECE ($\downarrow$) | Measured Latency (Single-Core) |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Majority Class** | Naive Baseline | 0.5000 ± 0.0000 | 0.2512 ± 0.0006 | 0.7488 ± 0.0006 | 0.1881 ± 0.0003 | 0.0003 ± 0.0006 | < 0.05 ms |
-| **Markov Chain (MC)** | Stochastic Model | 0.5777 ± 0.0197 | 0.2849 ± 0.0091 | 0.7488 ± 0.0006 | 0.1830 ± 0.0028 | **0.0179 ± 0.0118** | < 0.10 ms |
-| **ARIMA / Autoregressive** | Statistical Model | 0.7838 ± 0.0481 | 0.6351 ± 0.0828 | 0.7308 ± 0.0384 | 0.1835 ± 0.0242 | 0.1917 ± 0.0335 | < 0.15 ms |
-| **Logistic Regression** | Linear Tabular | 0.8424 ± 0.0299 | 0.6700 ± 0.0653 | 0.7727 ± 0.0436 | 0.1602 ± 0.0289 | 0.1449 ± 0.0377 | **0.115 ms** |
-| **Random Forest (200 trees)**| Tree Ensemble | 0.9050 ± 0.0357 | 0.7957 ± 0.0684 | 0.8361 ± 0.0401 | 0.1119 ± 0.0198 | 0.1054 ± 0.0235 | 11.018 ms |
+| **Majority Class** | Naive Baseline | 0.5000 ± 0.0000 | 0.2512 ± 0.0006 | 0.7488 ± 0.0006 | 0.1881 ± 0.0003 | 0.0003 ± 0.0006 | Not benchmarked |
+| **Markov Chain (MC)** | Stochastic Model | 0.5777 ± 0.0197 | 0.2849 ± 0.0091 | 0.7488 ± 0.0006 | 0.1830 ± 0.0028 | **0.0179 ± 0.0118** | Not benchmarked |
+| **ARIMA / Autoregressive** | Statistical Model | 0.7838 ± 0.0481 | 0.6351 ± 0.0828 | 0.7308 ± 0.0384 | 0.1835 ± 0.0242 | 0.1917 ± 0.0335 | Not benchmarked |
+| **Logistic Regression** | Linear Tabular | 0.8424 ± 0.0299 | 0.6700 ± 0.0653 | 0.7727 ± 0.0436 | 0.1602 ± 0.0289 | 0.1449 ± 0.0377 | **0.094 ms** |
+| **Random Forest (200 trees)**| Tree Ensemble | 0.9050 ± 0.0357 | 0.7957 ± 0.0684 | 0.8361 ± 0.0401 | 0.1119 ± 0.0198 | 0.1054 ± 0.0235 | 11.19 ms |
 | **HistGradientBoosting** | Gradient Boosting | **0.9086 ± 0.0226** | **0.8121 ± 0.0439** | **0.8744 ± 0.0296** | **0.7361 ± 0.0714** | **0.1028 ± 0.0203** | 0.0950 ± 0.0160 | 1.10 ms |
 | **Standard Transformer** | Deep Sequence | 0.8307 ± 0.0369 | 0.6440 ± 0.0633 | 0.7655 ± 0.0499 | 0.6091 ± 0.0536 | 0.1586 ± 0.0162 | 0.1444 ± 0.0117 | 0.78 ms |
 | **RetNet Surrogate (Ours)**| Deep Surrogate | 0.7506 ± 0.0484 | 0.5349 ± 0.0722 | 0.7308 ± 0.0251 | 0.5114 ± 0.0458 | 0.1819 ± 0.0178 | 0.1466 ± 0.0296 | **0.57 ms** (Recurrent) |

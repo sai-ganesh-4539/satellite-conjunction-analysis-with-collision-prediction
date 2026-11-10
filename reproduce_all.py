@@ -66,7 +66,7 @@ def step_2_run_tests():
     print("  [OK] All unit tests passed cleanly (zero NaNs, packing verified).")
 
 
-def step_3_run_benchmark(skip_unified_cv: bool = False):
+def step_3_run_benchmark(skip_unified_cv: bool = False, remeasure_latencies: bool = False):
     print("\n" + "=" * 70)
     print("STEP 3: RUNNING UNIFIED CV, GROUPED CV & MONTE CARLO BENCHMARKS")
     print("=" * 70)
@@ -76,6 +76,8 @@ def step_3_run_benchmark(skip_unified_cv: bool = False):
     if not skip_unified_cv:
         print("  -> Executing full 5-fold cross-validation training suite (src/benchmark_unified_cv.py)...")
         cmd_ucv = [sys.executable, "src/benchmark_unified_cv.py"]
+        if remeasure_latencies:
+            cmd_ucv.append("--remeasure-latencies")
         res_ucv = subprocess.run(cmd_ucv, cwd=REPO_ROOT, capture_output=True, text=True)
         if res_ucv.returncode != 0:
             print(res_ucv.stderr)
@@ -120,9 +122,22 @@ def step_4_generate_figures():
     print("  [OK] All 6 publication figures created in figures/.")
 
 
-def step_5_package_bundle():
+def step_5_generate_docx():
     print("\n" + "=" * 70)
-    print("STEP 5: PACKAGING SUBMISSION BUNDLE ZIP")
+    print("STEP 5: REGENERATING STANDALONE RESEARCH PAPER DOCX (scripts/generate_paper.py)")
+    print("=" * 70)
+    cmd = [sys.executable, "scripts/generate_paper.py"]
+    res = subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True)
+    print(res.stdout)
+    if res.returncode != 0:
+        print(res.stderr)
+        raise RuntimeError("DOCX generation failed!")
+    print("  [OK] research_paper.docx regenerated successfully.")
+
+
+def step_6_package_bundle():
+    print("\n" + "=" * 70)
+    print("STEP 6: PACKAGING SUBMISSION BUNDLE ZIP")
     print("=" * 70)
     zip_path = os.path.join(RESULTS_DIR, "SUBMISSION_BUNDLE.zip")
     os.makedirs(RESULTS_DIR, exist_ok=True)
@@ -158,6 +173,7 @@ def step_5_package_bundle():
         "download_cdms.py",
         "scripts/benchmark_vs_monte_carlo.py",
         "scripts/generate_publication_figures.py",
+        "scripts/generate_paper.py",
 
         # Unit & Astrodynamic Tests
         "tests/test_mathematical_validation.py",
@@ -208,6 +224,10 @@ def main():
         "--skip-unified-cv", action="store_true",
         help="Skip re-running the full 5-fold cross-validation suite (default: False; always reruns for full provenance verification)"
     )
+    parser.add_argument(
+        "--remeasure-latencies", action="store_true",
+        help="Force fresh measurement of single-core latencies instead of using frozen canonical benchmark"
+    )
     args = parser.parse_args()
 
     t_start = time.perf_counter()
@@ -217,9 +237,10 @@ def main():
 
     step_1_verify_data()
     step_2_run_tests()
-    step_3_run_benchmark(skip_unified_cv=args.skip_unified_cv)
+    step_3_run_benchmark(skip_unified_cv=args.skip_unified_cv, remeasure_latencies=args.remeasure_latencies)
     step_4_generate_figures()
-    step_5_package_bundle()
+    step_5_generate_docx()
+    step_6_package_bundle()
 
     elapsed = time.perf_counter() - t_start
     print("\n" + "=" * 80)
