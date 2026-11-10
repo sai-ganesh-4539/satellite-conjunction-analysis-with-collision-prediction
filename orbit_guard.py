@@ -207,14 +207,12 @@ def stream_encounter(
     mc_elapsed_ms = (time.perf_counter() - t_mc_start) * 1000.0
 
     speedup_2d = mc_elapsed_ms / max(0.001, retnet_time_ms)
-    speedup_3d = 3000.0 / max(0.001, retnet_time_ms)
 
     print(f"  * Monte Carlo Collision Prob: {mc_res['pc']:.4e} (Hits: {mc_res['hits']}/{mc_samples:,})")
     print(f"  * 95% Wilson Confidence Band: [{mc_res['wilson_95'][0]:.4e}, {mc_res['wilson_95'][1]:.4e}]")
     print(f"  * 2D Monte Carlo Timing:      {mc_elapsed_ms:.1f} ms (1,000,000 samples)")
     print(f"  * RetNet Inference Latency:   {retnet_time_ms:.2f} ms")
-    print(f"  * Speedup vs 2D B-Plane MC:   {speedup_2d:,.0f}x faster ({retnet_time_ms:.2f} ms vs {mc_elapsed_ms:.1f} ms)")
-    print(f"  * Est. Speedup vs 3D Prop:    ~{speedup_3d:,.0f}x faster (surrogate vs ~3,000 ms numerical integration)")
+    print(f"  * Speedup vs 2D B-Plane MC:   {speedup_2d:,.1f}x faster ({retnet_time_ms:.2f} ms vs {mc_elapsed_ms:.1f} ms)")
 
     # Flight Dynamics Recommendation (Demonstration Heuristic)
     cam = compute_cam_recommendation(pred_miss_val, pred_pc_val, time_to_tca_hours=hours_to_tca)

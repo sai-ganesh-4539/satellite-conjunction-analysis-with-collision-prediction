@@ -15,7 +15,7 @@ This pre-merge code review and scientific validation was performed on branch `fe
 
 The objective was to audit every modified and added file, identify mathematical and physical flaws, eliminate data leakage risks, verify computational speedup claims, enforce operational safety disclaimers, and ensure absolute scientific integrity in research publications.
 
-All 33 automated tests in `tests/` pass with zero failures. Critical scientific deficiencies around isotropic covariance calibration, CAM flight safety authority, and speedup framing have been fully resolved and documented.
+All 34 automated tests in `tests/` pass with zero failures. Critical scientific deficiencies around isotropic covariance calibration, CAM flight safety authority, and speedup framing have been fully resolved and documented.
 
 ---
 
@@ -28,13 +28,13 @@ All 33 automated tests in `tests/` pass with zero failures. Critical scientific 
 | `src/monte_carlo_engine.py` | B-plane coordinate projection lacked fallback for degenerate normal velocity vector. | **Medium** | When relative velocity was parallel to both radial and cross-track test directions, basis construction could fail. | Added 3rd orthogonal fallback vector `[0, 0, 1]` and verified basis orthonormality across all encounter angles. | **Fixed** |
 | `orbit_guard.py` | CAM recommendation labeled as "ACTIONABLE FLIGHT DYNAMICS RECOMMENDATION" without safety warnings. | **Critical** | Output header implied operational flight execution authority without non-linear orbit propagation or secondary screening. | Added prominent flight safety warning banners and labeled as demonstration heuristic only. | **Fixed** |
 | `orbit_guard.py` | Monte Carlo execution labeled as "GROUND-TRUTH HIGH-FIDELITY MONTE CARLO". | **High** | Implied independent physical truth from raw radar observations rather than 2D isotropic integration sampling. | Relabeled to "NUMERICAL MONTE CARLO INTEGRATION BENCHMARK (2D B-Plane Samples)". | **Fixed** |
-| `orbit_guard.py` | Speedup comparison conflated 2D B-plane sampling with 3D numerical propagation. | **Medium** | RetNet inference was compared to 2D sampling while citing literature 3D propagation times. | Disentangled metrics: printed explicit 2D MC speedup (~15x) and estimated 3D orbit propagation speedup (~2,500x). | **Fixed** |
+| `orbit_guard.py` | Speedup comparison conflated 2D B-plane sampling with 3D numerical propagation. | **Medium** | RetNet inference was compared to 2D sampling while citing unverified literature 3D propagation times. | Profiled single-core CPU 2D B-plane MC ($44.62\text{ ms}$). RetNet recurrent achieves $67.3\times$ speedup ($0.66\text{ ms}$). Removed unverified 3D propagation runtime and >2,500x speedup claims. | **Fixed** |
 | `src/model.py` | Dimension mismatch in `SwiGLUFFN` layer `w3`. | **High** | `self.w3 = nn.Linear(d_ff, d_model)` caused `RuntimeError: mat1 and mat2 shapes cannot be multiplied (56x128 and 170x128)`. | Corrected to `nn.Linear(d_model, d_ff, bias=False)`. Dimension tests verified. | **Fixed** |
 | `src/model.py` | Token padding previously treated as physical zero-values. | **High** | Zero-padding after normalization matched mean feature values, injecting artificial observations. | Implemented `pack_real_first` and causal masked pooling over real observations. Verified by `test_packing.py`. | **Fixed** |
 | `src/collision_forecaster.py` | Target values could potentially leak into earlier CDM sequence timesteps. | **High** | Sequence forecaster predicting final miss distance and $P_c$. | Verified that input prefix is strictly `g.iloc[:-1]` and target is `g.iloc[-1]`. Target $P_c$ is never an input feature. | **Verified Safe** |
 | `scripts/benchmark_vs_monte_carlo.py` | Loky CPU core count detection hangs on Windows environments. | **High** | Scikit-learn tree models froze during multiprocessing initialization on Windows. | Forced `LOKY_MAX_CPU_COUNT=1` and `OMP_NUM_THREADS=1`. Execution verified. | **Fixed** |
 | `scripts/generate_paper.py` | Hardcoded absolute Linux path `/home/z/...` causing `FileNotFoundError`. | **Medium** | Path to `research_paper.docx` pointed to external developer machine directory. | Replaced with `os.path.join(REPO_ROOT, "research_paper.docx")`. | **Fixed** |
-| `RESEARCH_PAPER.md` & `research_paper.tex` | Speedup claims and Monte Carlo descriptions lacked explicit boundary disclosures. | **High** | Abstract claimed $>2,500\times$ speedup over Monte Carlo without separating 2D B-plane from 3D trajectory integration. | Updated text to explicitly distinguish 2D B-plane sampling (~15x-40x) from 3D numerical orbit propagation (~2,500x). Disclosed 71% radius inflation. | **Fixed** |
+| `RESEARCH_PAPER.md` & `research_paper.tex` | Speedup claims and Monte Carlo descriptions lacked explicit boundary disclosures. | **High** | Abstract claimed $>2,500\times$ speedup over Monte Carlo without verified numerical runtime. | Updated text to report measured single-core 2D B-plane MC ($44.62\text{ ms}$) speedups: RetNet recurrent $67.3\times$ ($0.66\text{ ms}$), Transformer $50.3\times$ ($0.89\text{ ms}$). Removed unverified 3D propagation and >2,500x claims. Disclosed 71% radius inflation. | **Fixed** |
 | `README.md` | Outdated documentation referencing non-existent scripts (`train.py`), obsolete parameters, and lacking CLI guides. | **High** | README referenced 28 timesteps, RMSNorm, and did not document `orbit_guard.py` or `reproduce_all.py`. | Completely overhauled with accurate architecture, installation, reproduction commands, and CLI guide. | **Fixed** |
 | `reproduce_all.py` | Submission bundle omitted new mathematical tests and audit reports. | **Medium** | `files_to_pack` did not include `AUDIT_REPORT.md`, `VALIDATION_REPORT.md`, and `test_mathematical_validation.py`. | Added all reports and tests to `files_to_pack`. | **Fixed** |
 
@@ -58,21 +58,23 @@ All 33 automated tests in `tests/` pass with zero failures. Critical scientific 
   2. Added prominent safety warning banners at startup and in the advisory block.
   3. Added `is_operational_certified: False` and explicit multi-sentence safety disclaimers to both `recommend_cam` and `compute_cam_recommendation`.
 
-### 3.3 High Finding 3: Speedup Comparison Ambiguity
-- **The Issue:** Publications and CLI output cited a $>2,500\times$ speedup over Monte Carlo simulation.
-- **Scientific Impact:** 2D B-plane Monte Carlo in NumPy takes $48\text{ ms}$ for $10^6$ particles, while RetNet inference takes $1.2\text{--}3.3\text{ ms}$, representing a $15\times\text{--}40\times$ speedup. The $2,500\times$ speedup represents full 3D numerical trajectory propagation ($3,000\text{--}5,000\text{ ms}$). Conflating these two benchmarks is misleading.
+### 3.3 High Finding 3: Speedup Comparison & Removal of Unverified 3D Runtime Claims
+- **The Issue:** Publications and CLI output previously cited an unverified $>2,500\times$ speedup over numerical 3D orbit propagation citing Foster (1992).
+- **Scientific Reality:** Foster (1992) NASA JSC-25898 derived the 2D B-plane analytical probability integral, NOT numerical runtime. Citing Foster for numerical 3D runtime was invalid.
 - **Resolution:**
-  1. Updated `orbit_guard.py` to print both numbers separately:
-     - Speedup vs 2D B-Plane MC: ~15x faster.
-     - Est. Speedup vs 3D Numerical Orbit Propagation: ~2,500x faster.
-  2. Updated `RESEARCH_PAPER.md` and `research_paper.tex` to explicitly define both benchmarks.
+  1. Removed all unverified 3D numerical orbit propagation runtime (~3,000–5,000 ms) and theoretical >2,500× speedup claims across all documentation.
+  2. Standardized all timing on single-core CPU microbenchmarks:
+     - 2D B-Plane Monte Carlo ($10^6$ particles): **$44.619\text{ ms}$** median ($44.689\text{ ms}$ mean).
+     - RetNet Recurrent (O(1) step): **$0.663\text{ ms}$** median ($67.3\times$ speedup).
+     - Standard Transformer: **$0.886\text{ ms}$** median ($50.3\times$ speedup).
+     - HistGradientBoosting: **$1.286\text{ ms}$** median ($34.7\times$ speedup).
 
 ### 3.4 High Finding 4: Sequence Model Reality vs Tabular Tree Ensembles
 - **The Issue:** Previous reports sought to position deep sequence models (RetNet / Transformer) as superior to tabular tree ensembles.
 - **Audit Reality:**
   - On the 836 Space-Track encounters, HistGradientBoosting achieves **0.9086 AUC** and Random Forest achieves **0.9050 AUC**.
-  - Standard Transformer achieves **0.8524 ± 0.0264 AUC**, and RetNet achieves **0.8155 ± 0.0362 AUC** (unified 5-fold CV).
-  - Paired two-tailed $t$-test yields $t = -2.398, p = 0.0745$ (not statistically significant at α = 0.05). Furthermore, standard k-fold CV violates sample independence (Dietterich 1998, 75% training overlap), so this difference represents an empirical trend favoring softmax attention on sparse sequences rather than a proven universal inequality. HistGB significantly outperforms RetNet on tabular summaries ($t = -8.771, p = 0.0009$).
+  - Standard Transformer achieves **0.8307 ± 0.0369 AUC**, and RetNet achieves **0.7506 ± 0.0484 AUC** (unified 5-fold CV).
+  - Paired two-tailed $t$-test yields $t = -3.914, p = 0.0173$. While statistically significant across the 5 outer folds, standard $k$-fold CV violates sample independence (Dietterich 1998, 75% training overlap). HistGB significantly outperforms RetNet on tabular summaries ($t = -8.111, p = 0.0013$).
   - However, under strict graph-component cross-validation with zero satellite overlap between train and test, tree models drop by 18 points (0.954 to 0.777) due to memorization of static satellite attributes, while regularized linear models maintain solid generalization ($0.823 \pm 0.051$).
 - **Resolution:** All papers, documentation, and reports present these results transparently, highlighting the exact boundary conditions where tabular and sequence architectures excel.
 
@@ -89,26 +91,25 @@ python -m pytest tests/
 ```
 ============================= test session starts =============================
 platform win32 -- Python 3.11.9, pytest-8.3.3, pluggy-1.6.0
-rootdir: C:\Users\Hp\AppData\Local\Programs\Antigravity
-plugins: anyio-4.14.2, asyncio-0.24.0
-collected 33 items
+rootdir: E:\DL_fixed
+collected 34 items
 
-test_forecaster_shapes.py ..                                             [  6%]
-test_mathematical_validation.py ....................                     [ 66%]
-test_monte_carlo_engine.py .........                                     [ 93%]
-test_packing.py ..                                                       [100%]
+tests\test_forecaster_shapes.py ..                                       [  5%]
+tests\test_mathematical_validation.py .....................              [ 67%]
+tests\test_monte_carlo_engine.py .........                               [ 94%]
+tests\test_packing.py ..                                                 [100%]
 
-============================= 33 passed in 6.12s ==============================
+============================= 34 passed in 3.80s ==============================
 ```
 
-All 33 tests passed cleanly.
+All 34 tests passed cleanly.
 
 ---
 
 ## 5. Pre-Merge Sign-Off Checklist
 
 - [x] Working branch is `feature/operational-monte-carlo-surrogate`.
-- [x] Branch `main` has NOT been modified or merged.
+- [x] Branch `main` has NOT been modified or merged (pristine at `111924d`).
 - [x] Zero force-pushes executed.
 - [x] Coordinate geometry and B-plane projection mathematically validated.
 - [x] Foster 2D integration verified against analytical closed forms.
@@ -116,9 +117,9 @@ All 33 tests passed cleanly.
 - [x] Wilson score and Clopper-Pearson confidence intervals verified.
 - [x] Isotropic calibration circularity clearly disclosed across all files.
 - [x] CAM planner safety hardened with prominent disclaimers.
-- [x] Speedup claims disentangled between 2D sampling and 3D propagation.
+- [x] Unverified 3D propagation runtime and >2,500x speedup claims removed; speedups measured against 2D B-plane MC.
 - [x] Sequence padding (`pack_real_first`) verified against all-masked rows.
 - [x] Model comparison results reported honestly without bias.
 - [x] `VALIDATION_REPORT.md` written and committed.
 - [x] `AUDIT_REPORT.md` written and committed.
-- [x] All 33 pytest unit tests passing.
+- [x] All 34 pytest unit tests passing.

@@ -2,11 +2,11 @@
 
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg?logo=python&logoColor=white)](https://www.python.org/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-EE4C2C.svg?logo=pytorch&logoColor=white)](https://pytorch.org/)
-[![Tests](https://img.shields.io/badge/Pytest-33%20Passed-brightgreen.svg?logo=pytest&logoColor=white)](#automated-testing--validation)
+[![Tests](https://img.shields.io/badge/Pytest-34%20Passed-brightgreen.svg?logo=pytest&logoColor=white)](#automated-testing--validation)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Data: Space-Track](https://img.shields.io/badge/Data-Space--Track.org-0b5394)](https://www.space-track.org/)
 
-An operational flight dynamics and machine learning research platform for satellite conjunction assessment (CA), automated collision risk triage screening, and B-plane Monte Carlo astrodynamics simulation.
+An astrodynamics and machine learning research platform for satellite conjunction assessment (CA), automated collision risk triage screening, and B-plane Monte Carlo simulation.
 
 ---
 
@@ -28,12 +28,12 @@ An operational flight dynamics and machine learning research platform for satell
 
 ## Overview & Architecture
 
-With over 36,000 trackable resident space objects in Low Earth Orbit (LEO) and commercial mega-constellations launching thousands of satellites, satellite operators face an escalating volume of daily Conjunction Data Messages (CDMs). Operational safety workflows rely on high-fidelity numerical orbit propagation and Monte Carlo covariance sampling to estimate collision probability ($P_c$), an approach computationally intractable for catalog-wide real-time screening.
+With over 36,000 trackable resident space objects in Low Earth Orbit (LEO) and commercial mega-constellations launching thousands of satellites, satellite operations face an escalating volume of daily Conjunction Data Messages (CDMs). Operational safety workflows rely on high-fidelity numerical orbit propagation and Monte Carlo covariance sampling to estimate collision probability ($P_c$), an approach computationally intractable for catalog-wide real-time screening.
 
 This repository implements a multi-tier triage screening and astrodynamic simulation system:
 1. **Multi-Horizon AI Forecaster:** Sequences of CDMs are processed by deep sequence models (RetNet, Transformer) and tabular gradient boosting (HistGB) to predict final miss distance, peak $P_c$, and safety risk category at TCA in under 2 milliseconds.
 2. **Astrodynamics B-Plane Engine:** Evaluates 2D planar conjunction geometry, Foster (1992) Gauss-Legendre polar quadrature, Chan (1997) equal-area series, Akella-Alfriend (2000) Laplacian expansions, and vectorized 1,000,000-sample Monte Carlo simulations with exact 95% Wilson and Clopper-Pearson confidence intervals.
-3. **Orbit-Guard Mission-Control CLI:** Replays incoming CDM telemetry streams in real time, displays sub-2 ms AI risk alerts, computes Monte Carlo verification, and presents illustrative Collision Avoidance Maneuver (CAM) advisories.
+3. **Orbit-Guard Research CLI:** Replays incoming CDM telemetry streams in real time, displays sub-2 ms AI risk alerts, computes Monte Carlo verification, and presents illustrative Collision Avoidance Maneuver (CAM) advisories.
 
 ```mermaid
 flowchart TD
@@ -44,9 +44,9 @@ flowchart TD
 
     subgraph Models ["2. Multi-Target AI Forecasting"]
         MERGE --> PACK["Causal Dynamic Packing<br>(pack_real_first)"]
-        PACK --> RET["RetNet Surrogate<br>Multi-scale retention (1.2 ms)"]
-        PACK --> TRANS["Standard Transformer<br>Causal softmax attention (1.7 ms)"]
-        MERGE --> HGB["HistGradientBoosting<br>71 summary features (1.6 ms)"]
+        PACK --> RET["RetNet Surrogate<br>Multi-scale retention (0.66 ms)"]
+        PACK --> TRANS["Standard Transformer<br>Causal softmax attention (0.89 ms)"]
+        MERGE --> HGB["HistGradientBoosting<br>71 summary features (1.29 ms)"]
     end
 
     subgraph Engine ["3. Astrodynamics & Monte Carlo Engine"]
@@ -55,7 +55,7 @@ flowchart TD
         BPLANE --> MC["1,000,000-Sample Monte Carlo<br>Vectorized Cholesky + Wilson/Clopper CI"]
     end
 
-    subgraph Ops ["4. Mission Control & Flight Safety"]
+    subgraph Ops ["4. Research CLI & Safety Disclaimers"]
         MC --> CLI["orbit_guard.py<br>Real-Time Telemetry Stream Replay"]
         CLI --> CAM["CAM Advisory (Demonstration Heuristic)<br>Linearized Along-Track Secular Drift"]
     end
@@ -74,7 +74,7 @@ flowchart TD
 
 - **Zero-Padding Immunity (`pack_real_first`):** Variable-length CDM tracks (1 to 14 updates) are dynamically packed so valid physical observations sit at the front. Causal attention and retention masks prevent models from observing trailing padding tokens, eliminating zero-vector distortion and mask-induced NaNs.
 - **Strict Target Leakage Exclusion:** Conjunction events are grouped by unique satellite pairs (`SAT_1_ID`, `SAT_2_ID`). Predictions are made on earlier prefix observations (`g.iloc[:-1]`) predicting the held-out final observation (`g.iloc[-1]`). Instantaneous $P_c$ is strictly excluded from input features.
-- **Parallel & Recurrent Equivalence:** RetNet supports both parallel matrix training and step-by-step $O(1)$ streaming inference on flight avionics:
+- **Parallel & Recurrent Equivalence:** RetNet supports both parallel matrix training and step-by-step $O(1)$ streaming inference:
   $$S_n = \gamma S_{n-1} + k_n^T v_n, \quad o_n = q_n S_n$$
 - **Rigorous Statistical Confidence Intervals:** The Monte Carlo engine computes both asymptotic Wilson score intervals and conservative Clopper-Pearson exact Beta distribution quantiles.
 
@@ -84,21 +84,22 @@ flowchart TD
 
 Evaluated across 836 real orbital encounters under a unified 5-fold cross-validation protocol targeting high-risk encounters ($\max P_c \ge 5 \times 10^{-4}$):
 
-| Model Category | Model Architecture | ROC-AUC | PR-AUC (Average Precision) | Accuracy ($\tau=0.5$) | F1-Score ($\tau=0.5$) | Brier Score ($\downarrow$) | ECE ($\downarrow$) | CPU Latency (Batch=1) |
+| Model Category | Model Architecture | ROC-AUC | PR-AUC (Average Precision) | Accuracy ($\tau=0.5$) | F1-Score ($\tau=0.5$) | Brier Score ($\downarrow$) | ECE ($\downarrow$) | Measured Latency (Single-Core CPU) |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Classical Physics** | **Monte Carlo ($10^6$ particles)** | Reference | Reference | N/A | N/A | N/A | N/A | 44.62 ms (Measured) |
 | **Naive Baseline** | Majority Class | $0.5000 \pm 0.0000$ | $0.2512 \pm 0.0006$ | $0.7488 \pm 0.0006$ | $0.0000 \pm 0.0000$ | $0.1881$ | $0.0003$ | $< 0.05\text{ ms}$ |
 | **Stochastic** | Markov Chain (MC) | $0.5777 \pm 0.0197$ | $0.2849 \pm 0.0091$ | $0.7488 \pm 0.0006$ | $0.0000 \pm 0.0000$ | $0.1830$ | $\mathbf{0.0179}$ | $< 0.10\text{ ms}$ |
 | **Statistical** | ARIMA / Autoregressive | $0.7838 \pm 0.0481$ | $0.6351 \pm 0.0828$ | $0.7308 \pm 0.0384$ | $0.5750 \pm 0.0544$ | $0.1835$ | $0.1917$ | $< 0.15\text{ ms}$ |
-| **Linear Tabular** | Logistic Regression (L2) | $0.8424 \pm 0.0299$ | $0.6700 \pm 0.0653$ | $0.7727 \pm 0.0436$ | $0.6107 \pm 0.0396$ | $0.1602$ | $0.1449$ | $\mathbf{0.156\text{ ms}}$ |
-| **Tree Ensemble** | Random Forest (200 trees) | $0.9050 \pm 0.0357$ | $0.7957 \pm 0.0684$ | $0.8361 \pm 0.0401$ | $0.6815 \pm 0.0617$ | $0.1119$ | $0.1054$ | $7.772\text{ ms}$ |
-| **Gradient Boost** | **HistGradientBoosting** | $\mathbf{0.9086 \pm 0.0226}$ | $\mathbf{0.8121 \pm 0.0439}$ | $\mathbf{0.8744 \pm 0.0296}$ | $\mathbf{0.7361 \pm 0.0714}$ | $\mathbf{0.1028}$ | $0.0950$ | $1.557\text{ ms}$ |
-| **Deep Sequence** | Standard Transformer | $0.8524 \pm 0.0264$ | $0.6590 \pm 0.0476$ | $0.7858 \pm 0.0531$ | $0.6227 \pm 0.0471$ | $0.1475$ | $0.1372$ | $1.728\text{ ms}$ |
-| **Deep Surrogate** | RetNet (Proposed) | $0.8155 \pm 0.0362$ | $0.6328 \pm 0.0455$ | $0.7679 \pm 0.0414$ | $0.5583 \pm 0.0749$ | $0.1522$ | $0.0960$ | $\mathbf{1.210\text{ ms}}$ |
+| **Linear Tabular** | Logistic Regression (L2) | $0.8424 \pm 0.0299$ | $0.6700 \pm 0.0653$ | $0.7727 \pm 0.0436$ | $0.6107 \pm 0.0396$ | $0.1602$ | $0.1449$ | $\mathbf{0.115\text{ ms}}$ |
+| **Tree Ensemble** | Random Forest (200 trees) | $0.9050 \pm 0.0357$ | $0.7957 \pm 0.0684$ | $0.8361 \pm 0.0401$ | $0.6815 \pm 0.0617$ | $0.1119$ | $0.1054$ | $11.018\text{ ms}$ |
+| **Gradient Boost** | **HistGradientBoosting** | $\mathbf{0.9086 \pm 0.0226}$ | $\mathbf{0.8121 \pm 0.0439}$ | $\mathbf{0.8744 \pm 0.0296}$ | $\mathbf{0.7361 \pm 0.0714}$ | $\mathbf{0.1028}$ | $0.0950$ | $1.286\text{ ms}$ |
+| **Deep Sequence** | Standard Transformer | $0.8307 \pm 0.0369$ | $0.6440 \pm 0.0633$ | $0.7655 \pm 0.0499$ | $0.6091 \pm 0.0536$ | $0.1586$ | $0.1444$ | $0.886\text{ ms}$ |
+| **Deep Surrogate** | RetNet (Proposed) | $0.7506 \pm 0.0484$ | $0.5349 \pm 0.0722$ | $0.7308 \pm 0.0251$ | $0.5114 \pm 0.0458$ | $0.1819$ | $0.1466$ | $\mathbf{0.663\text{ ms}}$ (Recurrent) |
 
 ### Key Benchmark Insights
 1. **Tree Ensembles Lead on Sparse Sequences:** 59.5% of satellite encounters have $\le 3$ updates. Tabular gradient boosting on 71 summary statistics achieves the highest discrimination ($0.9086$ AUC), screening out $65.4\%$ of non-critical events at an operating recall of $84.3\%$.
-2. **Transformer vs. RetNet Statistical Comparison:** A paired two-tailed $t$-test ($n=5, t=-2.398, p=0.0745$) reflects an empirical trend favoring Transformer attention over linear retention on sparse sequences, though it falls short of formal $\alpha = 0.05$ significance. Standard paired $t$-tests on $k$-fold CV also suffer from training-overlap dependence (Dietterich, 1998), so this difference is an observed performance trend on sparse sequences rather than a proven universal inequality.
-3. **Execution Speed:** RetNet executes in $1.21\text{ ms}$ on CPU with $O(1)$ recurrent memory, well-suited for streaming edge flight hardware.
+2. **Transformer vs. RetNet Statistical Comparison:** A paired two-tailed $t$-test across the 5 outer test folds ($n=5, t=-3.914, p=0.0173$) reflects an empirical performance difference favoring Transformer softmax attention over linear retention on sparse sequences. Standard paired $t$-tests on $k$-fold CV also suffer from training-overlap dependence (Dietterich, 1998), so this difference is an observed performance gap under the evaluated cross-validation splits.
+3. **Execution Speed & Speedup:** RetNet executes recurrently in $0.663\text{ ms}$ on CPU with $O(1)$ memory. Compared to the measured 2D B-plane Monte Carlo engine ($44.62\text{ ms}$ for $10^6$ particles), RetNet is **$67.3\times$ faster**, Transformer is **$50.3\times$ faster**, and HistGradientBoosting is **$34.7\times$ faster**.
 
 ---
 
@@ -148,7 +149,7 @@ pip install torch numpy scipy pandas scikit-learn matplotlib pytest joblib
 
 ## Interactive Mission-Control CLI (`orbit_guard.py`)
 
-`orbit_guard.py` simulates real-time orbital conjunction assessment for flight operations:
+`orbit_guard.py` simulates real-time orbital conjunction assessment:
 - Streams sequential CDM updates across a monitoring campaign.
 - Executes sub-2 ms AI surrogate forecasts (predicted miss distance, peak $P_c$, safety tier).
 - Evaluates 1,000,000-sample B-plane Monte Carlo ground truth.
@@ -170,9 +171,9 @@ python orbit_guard.py --event-id 42 --mc-samples 1000000
 ### Sample CLI Output
 ```
 ================================================================================
-      ORBIT-GUARD: SATELLITE CONJUNCTION ASSESSMENT & FLIGHT SAFETY SYSTEM
+      ORBIT-GUARD: SATELLITE CONJUNCTION ASSESSMENT RESEARCH CLI
       AI Surrogate vs. 1,000,000-Sample Monte Carlo Astrodynamics Engine
-      *** FLIGHT SAFETY NOTICE: DEMONSTRATION & RESEARCH TOOL ONLY ***
+      *** SAFETY NOTICE: DEMONSTRATION & RESEARCH TOOL ONLY ***
 ================================================================================
 
 CONJUNCTION ENCOUNTER DOSSIER:
@@ -186,23 +187,22 @@ CONJUNCTION ENCOUNTER DOSSIER:
   --- Update #12/12 (TCA - 16.0h) ---
       * Latest Observed Miss:     1.6 m (Delta: -2.0 m)
       * RetNet Forecast at TCA:   Miss = 5.8 m | Pc = 1.48e-01 [CRITICAL ALERT]
-      * AI Inference Latency:     3.20 ms (RetNet) | 1.80 ms (HistGB)
+      * AI Inference Latency:     0.66 ms (RetNet) | 1.29 ms (HistGB)
 
 ================================================================================
 NUMERICAL MONTE CARLO INTEGRATION BENCHMARK (1,000,000 B-Plane Particles)...
   [NOTE: Sampling verification of 2D isotropic Gaussian integral; not independent orbit determination]
   * Monte Carlo Collision Prob: 2.3799e-02 (Hits: 23,799 / 1,000,000)
   * 95% Wilson Confidence Band: [2.3502e-02, 2.4100e-02]
-  * 2D Monte Carlo Timing:      41.95 ms (median, 1,000,000 samples; mean 43.61 ms)
-  * RetNet Inference Latency:   1.21 ms (single encounter)
-  * Speedup vs 2D B-Plane MC:   34.7x faster (1.21 ms vs 41.95 ms; 38.2x in pipeline)
-  * Est. Speedup vs 3D Prop:    ~2,500x faster (surrogate vs ~3,000 ms numerical integration)
+  * 2D Monte Carlo Timing:      44.62 ms (median, 1,000,000 samples; mean 44.69 ms)
+  * RetNet Inference Latency:   0.66 ms (recurrent O(1) step)
+  * Speedup vs 2D B-Plane MC:   67.3x faster (0.66 ms vs 44.62 ms)
 
 ================================================================================
 CONJUNCTION ASSESSMENT ADVISORY (DEMONSTRATION HEURISTIC):
   *** FLIGHT SAFETY DISCLAIMER: DEMONSTRATION HEURISTIC ONLY. NOT FOR OPERATIONAL FLIGHT USE. ***
   Status:       CRITICAL RISK: COLLISION AVOIDANCE MANEUVER REQUIRED
-  Burn Window:  EXECUTE AT T - 24 HOURS (Lead time: 16.0h available)
+  Candidate:    Candidate burn window at T - 24h (Demonstration Heuristic Only)
   Maneuver Dv:  0.499 m/s (Optimal Along-Track (Prograde +V))
   Advisory:     [DEMO HEURISTIC] Probability exceeds 5e-4 threshold. Heuristic along-track burn estimate: ~0.499 m/s to clear 5.0 km. MUST BE VERIFIED WITH HIGH-FIDELITY PROPAGATION.
   Safety Note:  DEMONSTRATION HEURISTIC ONLY: Computed via linearized along-track Clohessy-Wiltshire secular drift. Not certified for flight operations. Real avoidance decisions require full 6-DOF numerical ephemeris propagation, thruster dispersion modeling, and catalog-wide secondary conjunction screening.
@@ -221,7 +221,7 @@ python reproduce_all.py
 
 The pipeline executes five automated stages:
 1. **Dataset Integrity Verification:** Verifies MD5 checksums of `cdms.csv` and `satcat.csv`.
-2. **Automated Unit Testing:** Executes the complete 33-test suite via Pytest.
+2. **Automated Unit Testing:** Executes the complete 34-test suite via Pytest.
 3. **Surrogate vs. Monte Carlo Benchmark:** Benchmarks surrogates across 100 encounters with 1M Monte Carlo particles.
 4. **Figure Generation:** Generates all 6 publication figures (300 DPI PNG and vector PDF) in `figures/`.
 5. **Submission Bundle Packaging:** Packages all verified code, artifacts, papers, and figures into `results/SUBMISSION_BUNDLE.zip`.
@@ -236,8 +236,8 @@ The independent mathematical and statistical test suite validates coordinate pro
 python -m pytest tests/
 ```
 
-### Verified Test Suite (33 Tests, 100% Pass)
-- `tests/test_mathematical_validation.py` (20 tests):
+### Verified Test Suite (34 Tests, 100% Pass)
+- `tests/test_mathematical_validation.py` (21 tests):
   - B-plane basis orthonormality ($\hat{\xi} \cdot \hat{\zeta} = 0, \|\hat{\xi}\| = 1, \|\hat{\zeta}\| = 1, \hat{\xi} \cdot \hat{h} = 0$).
   - Trace invariance and eigenvalue boundedness of 2D projected covariance.
   - Singular relative velocity error handling.
@@ -246,6 +246,7 @@ python -m pytest tests/
   - Chan (1997) equal-area series monotonic convergence vs. chi-square CDF.
   - Akella & Alfriend (2000) Laplacian quadratic error scaling $\mathcal{O}((R/\sigma)^4)$.
   - Wilson (1927) score and Clopper-Pearson (1934) exact Beta quantile 95% coverage on 300,000+ particle simulations.
+  - Boundary behavior of Clopper-Pearson vs Wilson intervals at zero hits.
   - Isotropic scale inversion root-finding accuracy and radius inflation verification.
   - Linearized Clohessy-Wiltshire secular drift formula and flight safety disclaimers.
 - `tests/test_monte_carlo_engine.py` (9 tests):
@@ -261,7 +262,7 @@ python -m pytest tests/
 
 1. **Isotropic Covariance Calibration:** Public Space-Track CDMs omit 2x2 B-plane covariance matrices. An isotropic scale $\sigma$ was solved to match catalog $P_c$. Because real-world orbital encounters feature highly elongated, anisotropic covariances along the orbit track, 71% of high-risk cases required inflating the hard-body radius to match catalog $P_c$. Monte Carlo simulations here verify the **numerical sampling fidelity of the analytical integral**, not an independent physical orbit determination.
 2. **Illustrative CAM Heuristic Disclaimer:** The Collision Avoidance Maneuver (CAM) $\Delta v$ is calculated from linearized along-track Clohessy-Wiltshire secular drift. It is strictly an **illustrative demonstration heuristic**. Real flight operations require full 6-DOF numerical ephemeris propagation with high-order gravity ($J_{70,70}$), atmospheric drag variations, attitude slew constraints, and mandatory catalog-wide secondary conjunction screening.
-3. **Speedup Comparison Specifics:** RetNet inference takes $1.210\text{ ms}$. This represents a $34.7\times$ speedup over measured 2D B-plane Monte Carlo sampling ($41.95\text{ ms}$ median, $43.61\text{ ms}$ mean for $10^6$ particles; $38.2\times$ in pipeline) and an estimated $>2,500\times$ speedup over full 3D numerical orbit propagation ($~3,000\text{ ms}$, external literature estimate). All latencies were measured on a dedicated single-core CPU, batch size 1, across 100 repetitions after 10 warmups, excluding disk I/O and SATCAT merging.
+3. **Speedup Comparison Specifics:** RetNet recurrent inference takes $0.663\text{ ms}$ (and Transformer $0.886\text{ ms}$). This represents a $67.3\times$ speedup (and $50.3\times$ for Transformer) over measured 2D B-plane Monte Carlo sampling ($44.62\text{ ms}$ median, $44.69\text{ ms}$ mean for $10^6$ particles). All latencies were measured on a dedicated single-core CPU, batch size 1, across 100 repetitions after 10 warmups, excluding disk I/O and SATCAT merging.
 
 ---
 
@@ -280,6 +281,8 @@ python -m pytest tests/
 │   ├── models/                           # Trained model weights & scalers
 │   ├── monte_carlo_vs_surrogate_benchmark.json
 │   ├── benchmark_unified_cv.json
+│   ├── empirical_latency_benchmark.json
+│   ├── grouped_cv_leakage_audit.json
 │   └── SUBMISSION_BUNDLE.zip             # Packaged submission archive
 ├── scripts/
 │   ├── benchmark_vs_monte_carlo.py       # Head-to-head MC vs surrogate timing
@@ -291,7 +294,8 @@ python -m pytest tests/
 │   ├── data_processing.py                # Graph grouping & feature pipeline
 │   ├── model.py                          # RetNet & Transformer architectures
 │   ├── monte_carlo_engine.py             # Astrodynamics & B-plane integration
-│   └── operational_metrics.py            # Calibration, ECE, & screening rates
+│   ├── operational_metrics.py            # Calibration, ECE, & screening rates
+│   └── benchmark_unified_cv.py           # Canonical unified 5-fold CV runner
 ├── tests/
 │   ├── test_forecaster_shapes.py         # Model tensor shape tests
 │   ├── test_mathematical_validation.py   # Mathematical & astrodynamics audit
@@ -302,7 +306,7 @@ python -m pytest tests/
 ├── RESEARCH_PAPER.md                     # Markdown research paper draft
 ├── research_paper.tex                    # IEEE Transactions LaTeX paper
 ├── research_paper.docx                   # Word paper document
-├── orbit_guard.py                        # Mission control CLI flight tool
+├── orbit_guard.py                        # Conjunction assessment CLI tool
 ├── reproduce_all.py                      # Master automated reproduction script
 ├── requirements.txt                      # Python dependencies
 └── README.md                             # Project overview & documentation
@@ -321,3 +325,4 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE) for detai
 4. **Clohessy, W. H., & Wiltshire, R. S.** (1960). Terminal guidance system for satellite rendezvous. *Journal of the Aerospace Sciences*, 27(9), 653–658.
 5. **Sun, Y., et al.** (2023). Retentive Network: A successor to Transformer for large language models. *arXiv:2307.08621*.
 6. **Vaswani, A., et al.** (2017). Attention is all you need. *Advances in Neural Information Processing Systems (NeurIPS)*.
+7. **Dietterich, T. G.** (1998). Approximate statistical tests for comparing supervised classification learning algorithms. *Neural Computation*, 10(7), 1895–1923.

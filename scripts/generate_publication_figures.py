@@ -63,88 +63,56 @@ def _load_json(filename: str) -> dict:
 
 
 def fig1_roc_pr_curves():
-    """Figure 1: Unified 5-Fold Cross-Validation ROC and PR curves."""
+    """Figure 1: Unified 5-Fold Cross-Validation Empirical ROC and PR curves."""
     bench = _load_json("benchmark_unified_cv.json")
     summary = bench["summary"]
+    empirical = bench.get("empirical_curves", {})
+    if not empirical:
+        raise ValueError("Missing 'empirical_curves' in benchmark_unified_cv.json")
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(13, 5.5))
 
-    # Real cross-validation benchmark results (verified directly from benchmark_unified_cv.json)
-    models_data = {
-        "HistGradientBoosting": {
-            "auc": summary["HistGradientBoosting"]["auc_roc"]["mean"],
-            "auc_std": summary["HistGradientBoosting"]["auc_roc"]["std"],
-            "pr": summary["HistGradientBoosting"]["pr_auc"]["mean"],
-            "pr_std": summary["HistGradientBoosting"]["pr_auc"]["std"],
-            "color": "#1b5e20", "style": "-",
-        },
-        "Random Forest (200 trees)": {
-            "auc": summary["Random Forest"]["auc_roc"]["mean"],
-            "auc_std": summary["Random Forest"]["auc_roc"]["std"],
-            "pr": summary["Random Forest"]["pr_auc"]["mean"],
-            "pr_std": summary["Random Forest"]["pr_auc"]["std"],
-            "color": "#2e7d32", "style": "--",
-        },
-        "Standard Transformer": {
-            "auc": summary["Transformer Baseline"]["auc_roc"]["mean"],
-            "auc_std": summary["Transformer Baseline"]["auc_roc"]["std"],
-            "pr": summary["Transformer Baseline"]["pr_auc"]["mean"],
-            "pr_std": summary["Transformer Baseline"]["pr_auc"]["std"],
-            "color": "#1565c0", "style": "-",
-        },
-        "Logistic Regression (L2)": {
-            "auc": summary["Logistic Regression"]["auc_roc"]["mean"],
-            "auc_std": summary["Logistic Regression"]["auc_roc"]["std"],
-            "pr": summary["Logistic Regression"]["pr_auc"]["mean"],
-            "pr_std": summary["Logistic Regression"]["pr_auc"]["std"],
-            "color": "#e65100", "style": "-.",
-        },
-        "RetNet Surrogate (Proposed)": {
-            "auc": summary["RetNet Surrogate (Ours)"]["auc_roc"]["mean"],
-            "auc_std": summary["RetNet Surrogate (Ours)"]["auc_roc"]["std"],
-            "pr": summary["RetNet Surrogate (Ours)"]["pr_auc"]["mean"],
-            "pr_std": summary["RetNet Surrogate (Ours)"]["pr_auc"]["std"],
-            "color": "#c62828", "style": "-",
-        },
-    }
-
-    fpr_grid = np.linspace(0, 1, 100)
-    recall_grid = np.linspace(0, 1, 100)
+    # Real cross-validation benchmark results
+    models_config = [
+        ("HistGradientBoosting", "HistGradientBoosting", "#1b5e20", "-", 2.2),
+        ("Random Forest (200 trees)", "Random Forest", "#2e7d32", "--", 2.0),
+        ("Standard Transformer", "Transformer Baseline", "#1565c0", "-", 2.0),
+        ("Logistic Regression (L2)", "Logistic Regression", "#e65100", "-.", 1.8),
+        ("RetNet Surrogate (Proposed)", "RetNet Surrogate (Ours)", "#c62828", "-", 2.2),
+    ]
 
     # 1. ROC Curve
-    ax1.plot([0, 1], [0, 1], "k--", alpha=0.5, label="Random Guess (AUC = 0.50)")
-    for name, m in models_data.items():
-        p = m["auc"]
-        tpr = 1.0 - (1.0 - fpr_grid) ** (p / (1.0 - p + 1e-6))
-        ax1.plot(fpr_grid, tpr, m["style"], color=m["color"],
-                 label=f"{name} ({m['auc']:.3f} ± {m['auc_std']:.3f})")
-        tpr_upper = np.clip(1.0 - (1.0 - fpr_grid) ** ((p + m["auc_std"]) / (1.0 - p - m["auc_std"] + 1e-6)), 0, 1)
-        tpr_lower = np.clip(1.0 - (1.0 - fpr_grid) ** ((p - m["auc_std"]) / (1.0 - p + m["auc_std"] + 1e-6)), 0, 1)
-        ax1.fill_between(fpr_grid, tpr_lower, tpr_upper, color=m["color"], alpha=0.08)
+    ax1.plot([0, 1], [0, 1], "k--", alpha=0.5, label="Random Guess (AUC = 0.500)")
+    for disp_name, key, color, style, lw in models_config:
+        auc_mean = summary[key]["auc_roc"]["mean"]
+        auc_std = summary[key]["auc_roc"]["std"]
+        fpr = np.array(empirical[key]["roc"]["fpr"])
+        tpr = np.array(empirical[key]["roc"]["tpr"])
+        ax1.plot(fpr, tpr, style, color=color, lw=lw,
+                 label=f"{disp_name} (AUC = {auc_mean:.3f} \u00b1 {auc_std:.3f})")
 
     ax1.set_xlabel("False Positive Rate (1 - Specificity)")
     ax1.set_ylabel("True Positive Rate (Recall)")
-    ax1.set_title("(a) Receiver Operating Characteristic (ROC-AUC)")
+    ax1.set_title("(a) Out-of-Fold Empirical ROC Curves (ROC-AUC)")
     ax1.legend(loc="lower right", frameon=True, framealpha=0.9, fontsize=9)
     ax1.set_xlim([-0.02, 1.02])
     ax1.set_ylim([-0.02, 1.02])
 
     # 2. PR Curve
     base_prev = summary["Majority Class"]["pr_auc"]["mean"]
-    ax2.axhline(base_prev, color="k", linestyle="--", alpha=0.5, label=f"Base Rate ({base_prev*100:.1f}%)")
-    for name, m in models_data.items():
-        ap = m["pr"]
-        prec = base_prev + (1.0 - base_prev) * (1.0 - recall_grid ** 2) * (ap / 0.85)
-        prec = np.clip(prec, base_prev, 1.0)
-        ax2.plot(recall_grid, prec, m["style"], color=m["color"],
-                 label=f"{name} (AP = {m['pr']:.3f} ± {m['pr_std']:.3f})")
-        prec_up = np.clip(prec + m["pr_std"], 0, 1)
-        prec_lo = np.clip(prec - m["pr_std"], 0, 1)
-        ax2.fill_between(recall_grid, prec_lo, prec_up, color=m["color"], alpha=0.08)
+    ax2.axhline(base_prev, color="k", linestyle="--", alpha=0.5,
+                label=f"Base Rate ({base_prev*100:.1f}%)")
+    for disp_name, key, color, style, lw in models_config:
+        pr_mean = summary[key]["pr_auc"]["mean"]
+        pr_std = summary[key]["pr_auc"]["std"]
+        rec = np.array(empirical[key]["pr"]["recall"])
+        prec = np.array(empirical[key]["pr"]["precision"])
+        ax2.plot(rec, prec, style, color=color, lw=lw,
+                 label=f"{disp_name} (AP = {pr_mean:.3f} \u00b1 {pr_std:.3f})")
 
     ax2.set_xlabel("Recall (True Positive Rate)")
     ax2.set_ylabel("Precision (Positive Predictive Value)")
-    ax2.set_title("(b) Precision-Recall Curves (PR-AUC)")
+    ax2.set_title("(b) Out-of-Fold Empirical PR Curves (PR-AUC)")
     ax2.legend(loc="upper right", frameon=True, framealpha=0.9, fontsize=9)
     ax2.set_xlim([-0.02, 1.02])
     ax2.set_ylim([0.15, 1.02])
@@ -157,30 +125,37 @@ def fig1_roc_pr_curves():
 
 
 def fig2_calibration_reliability():
-    """Figure 2: Reliability Diagrams and Expected Calibration Error (ECE)."""
+    """Figure 2: Empirical Reliability Diagrams and Expected Calibration Error (ECE)."""
     bench = _load_json("benchmark_unified_cv.json")
     summary = bench["summary"]
+    empirical = bench.get("empirical_curves", {})
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(13, 5.5))
 
-    conf_bins = np.linspace(0.05, 0.95, 10)
-    acc_hgb = conf_bins + np.array([-0.02, 0.01, -0.01, 0.02, -0.01, 0.03, -0.02, 0.01, -0.01, 0.01])
-    acc_ret = conf_bins + np.array([0.02, -0.02, 0.03, -0.03, 0.02, -0.02, 0.03, -0.02, 0.02, -0.01])
-    acc_tra = conf_bins + np.array([0.04, -0.03, 0.05, -0.04, 0.03, -0.04, 0.05, -0.03, 0.04, -0.02])
-
-    ece_hgb = summary["HistGradientBoosting"]["ece"]["mean"]
-    ece_ret = summary["RetNet Surrogate (Ours)"]["ece"]["mean"]
-    ece_tra = summary["Transformer Baseline"]["ece"]["mean"]
-
     ax1.plot([0, 1], [0, 1], "k--", label="Perfect Calibration")
-    ax1.plot(conf_bins, acc_hgb, "s-", color="#1b5e20", label=f"HistGradientBoosting (ECE = {ece_hgb:.4f})")
-    ax1.plot(conf_bins, acc_ret, "o-", color="#c62828", label=f"RetNet Surrogate (ECE = {ece_ret:.4f})")
-    ax1.plot(conf_bins, acc_tra, "^-", color="#1565c0", label=f"Standard Transformer (ECE = {ece_tra:.4f})")
 
-    ax1.set_xlabel("Mean Predicted Confidence")
-    ax1.set_ylabel("Empirical True Fraction")
-    ax1.set_title("(a) Temperature-Calibrated Reliability Curves")
-    ax1.legend(loc="upper left", frameon=True)
+    diag_models = [
+        ("HistGradientBoosting", "HistGradientBoosting", "#1b5e20", "s-"),
+        ("Standard Transformer", "Transformer Baseline", "#1565c0", "^-"),
+        ("RetNet Surrogate (Proposed)", "RetNet Surrogate (Ours)", "#c62828", "o-"),
+        ("Logistic Regression", "Logistic Regression", "#e65100", "d--"),
+    ]
+
+    for disp_name, key, color, fmt in diag_models:
+        cal = empirical[key]["calibration"]
+        confs = np.array(cal["confidences"])
+        accs = np.array(cal["accuracies"])
+        counts = np.array(cal["counts"])
+        # Plot only bins that contain samples
+        valid = counts > 0
+        ece_val = summary[key]["ece"]["mean"]
+        ax1.plot(confs[valid], accs[valid], fmt, color=color, lw=2.0, ms=6,
+                 label=f"{disp_name} (ECE = {ece_val:.4f})")
+
+    ax1.set_xlabel("Mean Predicted Probability (Confidence)")
+    ax1.set_ylabel("Empirical True Positive Fraction")
+    ax1.set_title("(a) Out-of-Fold Empirical Reliability Diagrams (10 Bins)")
+    ax1.legend(loc="upper left", frameon=True, fontsize=9)
     ax1.set_xlim([-0.02, 1.02])
     ax1.set_ylim([-0.02, 1.02])
 
@@ -195,16 +170,18 @@ def fig2_calibration_reliability():
     ]
     models = [m[0] for m in model_keys]
     ece_vals = [summary[m[1]]["ece"]["mean"] for m in model_keys]
+    ece_errs = [summary[m[1]]["ece"]["std"] for m in model_keys]
     brier_vals = [summary[m[1]]["brier_score"]["mean"] for m in model_keys]
+    brier_errs = [summary[m[1]]["brier_score"]["std"] for m in model_keys]
 
     x = np.arange(len(models))
     w = 0.38
-    ax2.bar(x - w/2, ece_vals, w, label="ECE (lower is better)", color="#0288d1", alpha=0.85)
-    ax2.bar(x + w/2, brier_vals, w, label="Brier Score (lower is better)", color="#f57c00", alpha=0.85)
+    ax2.bar(x - w/2, ece_vals, w, yerr=ece_errs, capsize=3, label="ECE (\u2193)", color="#0288d1", alpha=0.85)
+    ax2.bar(x + w/2, brier_vals, w, yerr=brier_errs, capsize=3, label="Brier Score (\u2193)", color="#f57c00", alpha=0.85)
     ax2.set_xticks(x)
     ax2.set_xticklabels(models, rotation=35, ha="right")
     ax2.set_ylabel("Calibration Error Metric")
-    ax2.set_title("(b) Calibration Error & Brier Score Comparison")
+    ax2.set_title("(b) 5-Fold Calibration Error & Brier Score Comparison")
     ax2.legend(loc="upper right", frameon=True)
 
     plt.tight_layout()
@@ -258,7 +235,7 @@ def fig3_grouped_cv_leakage():
 
     ax.set_xticks(x)
     ax.set_xticklabels(scheme_labels)
-    ax.set_ylabel("Test ROC-AUC Score (Mean ± Std over 15 Folds)")
+    ax.set_ylabel("Test ROC-AUC Score (Mean \u00b1 Std over 15 Folds)")
     ax.set_title("Grouped Cross-Validation Audit: Generalization to Unseen Satellites")
     ax.set_ylim([0.60, 1.02])
     ax.legend(loc="lower left", frameon=True)
@@ -310,9 +287,8 @@ def fig4_streaming_horizon():
 
 
 def fig5_pareto_latency():
-    """Figure 5: Operational Pareto Frontier and Computational Paradigm Latency Comparison."""
+    """Figure 5: Operational Pareto Frontier and Measured Computational Paradigm Latency Comparison."""
     bench = _load_json("benchmark_unified_cv.json")
-    mc_bench = _load_json("monte_carlo_vs_surrogate_benchmark.json")
     summary = bench["summary"]
     latencies = bench["latencies"]
 
@@ -323,11 +299,25 @@ def fig5_pareto_latency():
     # ─────────────────────────────────────────────────────────────
     ml_models = [
         {
-            "name": "RetNet Surrogate (Ours)",
+            "name": "RetNet (Ours, Recurrent O(1))",
             "lat": latencies["RetNet Recurrent O(1) step"]["median"],
             "auc": summary["RetNet Surrogate (Ours)"]["auc_roc"]["mean"],
             "auc_std": summary["RetNet Surrogate (Ours)"]["auc_roc"]["std"],
             "color": "#c62828", "marker": "*", "size": 220,
+        },
+        {
+            "name": "RetNet (Ours, Parallel L=14)",
+            "lat": latencies["RetNet Parallel (seq L=14)"]["median"],
+            "auc": summary["RetNet Surrogate (Ours)"]["auc_roc"]["mean"],
+            "auc_std": summary["RetNet Surrogate (Ours)"]["auc_roc"]["std"],
+            "color": "#d32f2f", "marker": "v", "size": 130,
+        },
+        {
+            "name": "Standard Transformer",
+            "lat": latencies["Transformer Baseline"]["median"],
+            "auc": summary["Transformer Baseline"]["auc_roc"]["mean"],
+            "auc_std": summary["Transformer Baseline"]["auc_roc"]["std"],
+            "color": "#1565c0", "marker": "o", "size": 130,
         },
         {
             "name": "HistGradientBoosting",
@@ -337,13 +327,6 @@ def fig5_pareto_latency():
             "color": "#1b5e20", "marker": "s", "size": 130,
         },
         {
-            "name": "Standard Transformer",
-            "lat": latencies["Transformer (seq L=14)"]["median"],
-            "auc": summary["Transformer Baseline"]["auc_roc"]["mean"],
-            "auc_std": summary["Transformer Baseline"]["auc_roc"]["std"],
-            "color": "#1565c0", "marker": "o", "size": 130,
-        },
-        {
             "name": "Logistic Regression (L2)",
             "lat": latencies["Logistic Regression"]["median"],
             "auc": summary["Logistic Regression"]["auc_roc"]["mean"],
@@ -351,22 +334,22 @@ def fig5_pareto_latency():
             "color": "#e65100", "marker": "^", "size": 130,
         },
         {
-            "name": "Random Forest",
-            "lat": latencies["Random Forest (100 trees)"]["median"],
+            "name": "Random Forest (200 trees)",
+            "lat": latencies["Random Forest"]["median"],
             "auc": summary["Random Forest"]["auc_roc"]["mean"],
             "auc_std": summary["Random Forest"]["auc_roc"]["std"],
             "color": "#2e7d32", "marker": "D", "size": 110,
         },
     ]
 
-    # Neutral reference region: Low-Latency Research Regime (< 3 ms CPU)
-    ax1.axvspan(0.08, 3.0, color="#e0f7fa", alpha=0.5, label="Low-Latency Regime (< 3 ms CPU)")
+    # Neutral reference region: Low-Latency Research Regime (< 2 ms CPU)
+    ax1.axvspan(0.08, 2.0, color="#e0f7fa", alpha=0.5, label="Sub-2 ms Inference Regime")
 
     for p in ml_models:
         ax1.scatter(p["lat"], p["auc"], color=p["color"], marker=p["marker"], s=p["size"], zorder=5)
         ax1.errorbar(p["lat"], p["auc"], yerr=p["auc_std"], fmt="none", color=p["color"], capsize=3, zorder=4)
-        offset_y = 0.008 if p["name"] != "Random Forest" else -0.018
-        offset_x = 1.15 if p["lat"] < 2.0 else 0.55
+        offset_y = 0.008 if "Random" not in p["name"] and "Parallel" not in p["name"] else -0.016
+        offset_x = 1.15 if p["lat"] < 2.0 else 0.52
         ax1.annotate(
             f"{p['name']}\n({p['lat']:.2f} ms, AUC {p['auc']:.3f})",
             (p["lat"], p["auc"]),
@@ -379,49 +362,50 @@ def fig5_pareto_latency():
     ax1.set_xlabel("Single-Encounter CPU Inference Latency (ms, log scale)")
     ax1.set_ylabel("Held-Out 5-Fold Test ROC-AUC Score")
     ax1.set_title("(a) Machine Learning Pareto Frontier (AUC vs. Latency)")
-    ax1.set_xlim([0.08, 15.0])
-    ax1.set_ylim([0.76, 0.94])
+    ax1.set_xlim([0.07, 20.0])
+    ax1.set_ylim([0.70, 0.95])
     ax1.legend(loc="lower left", frameon=True)
 
     # ─────────────────────────────────────────────────────────────
-    # Subplot (b): Computational Paradigm Latency Comparison
+    # Subplot (b): Computational Paradigm Latency Comparison (100% Measured)
     # ─────────────────────────────────────────────────────────────
-    lat_mc = float(mc_bench.get("latency_ms", {}).get("MonteCarlo_ms_median", 41.948))
-    lat_3d_est = 3000.0  # External literature baseline (~3,000 ms, NASA/ESA operational tools)
+    lat_mc = latencies["2D B-Plane Monte Carlo (10^6 samples)"]["median"]
 
     paradigms = [
-        {"label": "RetNet Recurrent [O(1) Step]", "lat": latencies["RetNet Recurrent O(1) step"]["median"], "color": "#c62828", "hatch": ""},
-        {"label": "HistGradientBoosting [Summary Tabular]", "lat": latencies["HistGradientBoosting"]["median"], "color": "#1b5e20", "hatch": ""},
-        {"label": "Standard Transformer [seq L=14]", "lat": latencies["Transformer (seq L=14)"]["median"], "color": "#1565c0", "hatch": ""},
-        {"label": "Random Forest [100 trees]", "lat": latencies["Random Forest (100 trees)"]["median"], "color": "#2e7d32", "hatch": ""},
-        {"label": "2D B-Plane MC (10^6 samples) [Measured]", "lat": lat_mc, "color": "#880e4f", "hatch": ""},
-        {"label": "3D Numerical Orbit Prop [External Estimate]", "lat": lat_3d_est, "color": "#7b1fa2", "hatch": "//"},
+        {"label": "Logistic Regression [Linear Tabular]", "lat": latencies["Logistic Regression"]["median"], "color": "#e65100"},
+        {"label": "RetNet Recurrent [O(1) Step]", "lat": latencies["RetNet Recurrent O(1) step"]["median"], "color": "#c62828"},
+        {"label": "Standard Transformer [Causal Seq]", "lat": latencies["Transformer Baseline"]["median"], "color": "#1565c0"},
+        {"label": "RetNet Parallel [Seq L=14]", "lat": latencies["RetNet Parallel (seq L=14)"]["median"], "color": "#d32f2f"},
+        {"label": "HistGradientBoosting [Summary Tabular]", "lat": latencies["HistGradientBoosting"]["median"], "color": "#1b5e20"},
+        {"label": "Random Forest [200 Trees]", "lat": latencies["Random Forest"]["median"], "color": "#2e7d32"},
+        {"label": "2D B-Plane MC (10^6 samples) [Measured]", "lat": lat_mc, "color": "#880e4f"},
     ]
 
     y_pos = np.arange(len(paradigms))
     for i, p in enumerate(paradigms):
-        ax2.barh(
-            y_pos[i], p["lat"], height=0.55, color=p["color"],
-            alpha=0.85 if not p["hatch"] else 0.45,
-            edgecolor=p["color"], hatch=p["hatch"], lw=1.5
-        )
-        text_str = f" {p['lat']:.2f} ms" if p["lat"] < 100 else f" {p['lat']:,.0f} ms (Literature)"
+        ax2.barh(y_pos[i], p["lat"], height=0.55, color=p["color"], alpha=0.85, edgecolor=p["color"], lw=1.5)
+        text_str = f" {p['lat']:.3f} ms" if p["lat"] < 1.0 else f" {p['lat']:.2f} ms"
         ax2.text(p["lat"] * 1.15, y_pos[i], text_str, va="center", fontsize=9, fontweight="bold")
 
     ax2.set_xscale("log")
     ax2.set_yticks(y_pos)
     ax2.set_yticklabels([p["label"] for p in paradigms], fontsize=9)
-    ax2.set_xlabel("Execution Latency per Encounter (ms, log scale)")
-    ax2.set_title("(b) Computational Paradigm Latency Comparison")
-    ax2.set_xlim([0.08, 25000])
+    ax2.set_xlabel("Measured Execution Latency per Encounter (ms, single-core CPU, log scale)")
+    ax2.set_title("(b) Measured Computational Paradigm Latency Comparison")
+    ax2.set_xlim([0.05, 120])
+
+    speedup_ret = lat_mc / latencies["RetNet Recurrent O(1) step"]["median"]
+    speedup_trans = lat_mc / latencies["Transformer Baseline"]["median"]
+    speedup_hgb = lat_mc / latencies["HistGradientBoosting"]["median"]
 
     ax2.annotate(
-        "Paradigm Distinction:\n"
-        "• ML Surrogates (1.2–1.7 ms): Fast empirical risk triage\n"
-        "• 2D Monte Carlo (41.95 ms): Direct 10^6 Gaussian quadrature\n"
-        "• 3D Orbit Prop (~3,000 ms): External literature estimate;\n"
-        "  not measured by this project",
-        xy=(0.04, 0.12), xycoords="axes fraction",
+        "Empirical Speedup vs. 2D Monte Carlo (44.62 ms):\n"
+        f"• RetNet Recurrent: {speedup_ret:.1f}\u00d7 faster (0.66 ms)\n"
+        f"• Transformer:      {speedup_trans:.1f}\u00d7 faster (0.89 ms)\n"
+        f"• HistGB:           {speedup_hgb:.1f}\u00d7 faster (1.29 ms)\n"
+        "All measurements strictly standardized on single-core CPU\n"
+        "(10 warmup, 100 repeats, batch size 1).",
+        xy=(0.04, 0.10), xycoords="axes fraction",
         bbox=dict(boxstyle="round,pad=0.4", fc="#fafafa", ec="#757575", lw=1.0),
         fontsize=8.5, color="#212121"
     )
@@ -486,20 +470,20 @@ def fig6_monte_carlo_correlation():
     ax2.scatter(log_mc, log_ret, color="#c62828", alpha=0.5, marker="^", s=35, label="RetNet")
     ax2.plot([min_val, max_val], [min_val, max_val], "k--", alpha=0.6, label="y = x")
 
-    lat_mc_val = float(bench_data.get("latency_ms", {}).get("MonteCarlo_ms_median", 41.95))
-    ret_speedup = float(bench_data.get("latency_ms", {}).get("RetNet_speedup_vs_mc", 38.2))
+    lat_mc_val = float(bench_data.get("latency_ms", {}).get("MonteCarlo_ms_median", 44.62))
+    ret_lat = float(bench_data.get("latency_ms", {}).get("RetNet_ms", 0.66))
+    ret_speedup = float(bench_data.get("latency_ms", {}).get("RetNet_speedup_vs_mc", lat_mc_val / ret_lat))
 
     ax2.annotate(
         "Surrogate Continuous log-Pc Prediction:\n"
-        "• Transformer: R² = 0.034, MAE = 0.61 log-units\n"
-        "• HistGB:      R² = 0.003, MAE = 0.62 log-units\n"
-        "• RetNet:      R² = -11.2, MAE = 2.84 log-units\n\n"
+        "• Transformer: R\u00b2 = 0.034, MAE = 0.61 log-units\n"
+        "• HistGB:      R\u00b2 = 0.003, MAE = 0.62 log-units\n"
+        "• RetNet:      R\u00b2 = -11.2, MAE = 2.84 log-units\n\n"
         "Classification vs. Regression:\n"
-        "• Binary Triage (Pc >= 5e-4): Strong (AUC 0.85-0.91)\n"
+        "• Binary Triage (Pc >= 5e-4): Strong (AUC 0.83-0.91)\n"
         "• Continuous Pc: Underconstrained without final cov\n\n"
-        "Speedup:\n"
-        f"• Measured vs 2D MC: {ret_speedup:.1f}x faster (1.10 ms vs {lat_mc_val:.2f} ms)\n"
-        "• Est. vs 3D Prop:   ~2,500x faster (literature)",
+        "Empirical Speedup vs. 2D Monte Carlo:\n"
+        f"• RetNet: {ret_speedup:.1f}\u00d7 faster ({ret_lat:.2f} ms vs {lat_mc_val:.2f} ms)",
         xy=(0.04, 0.42), xycoords="axes fraction",
         bbox=dict(boxstyle="round,pad=0.4", fc="#fafafa", ec="#424242", lw=1.2),
         fontsize=8.5, color="#212121"

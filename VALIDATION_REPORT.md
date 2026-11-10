@@ -194,9 +194,9 @@ $$S_n = \gamma S_{n-1} + k_n^T v_n, \quad o_n = q_n S_n$$
 where $S_n \in \mathbb{R}^{d \times d}$.
 
 **Audit Finding on Sparse Sequences:** Under 5-fold cross-validation on 836 encounters:
-- Transformer achieves $\text{AUC} = 0.8524 \pm 0.0264$.
-- RetNet achieves $\text{AUC} = 0.8155 \pm 0.0362$.
-- Paired two-tailed $t$-test: $t = -2.398, p = 0.0745$ (empirical trend favoring softmax attention on sparse tracks, but not statistically significant at $\alpha = 0.05$; standard $k$-fold CV violates sample independence per Dietterich 1998).
+- Transformer achieves $\text{AUC} = 0.8307 \pm 0.0369$.
+- RetNet achieves $\text{AUC} = 0.7506 \pm 0.0484$.
+- Paired two-tailed $t$-test: $t = -3.914, p = 0.0173$ ($n=5$). As established by Dietterich (1998), standard paired $t$-tests on $k$-fold cross-validation violate sample independence due to overlapping training sets, which inflates Type I error rates.
 **Explanation:** On extremely sparse sequences (median 3 updates), bounded softmax attention $\text{softmax}(QK^T / \sqrt{d})$ provides critical sharpening on the single critical update where miss distance dropped, whereas unnormalized decaying linear retention exhibits dispersion.
 
 ### 7.3 Graph-Component Grouped Cross-Validation (Satellite Identity Leakage)
@@ -215,18 +215,23 @@ Standard random cross-validation allows the same satellite (and its static RCS, 
 
 ## 8. Computational Latency & Speedup Breakdown
 
-To ensure scientific integrity, computational comparisons must compare equivalent computational tasks:
+To ensure scientific integrity, all latency microbenchmarks were executed under a standardized protocol: single-core CPU (x86_64), batch size 1, 100 repetitions following 10 warmup iterations. Disk I/O, SATCAT cross-referencing, and batch data loading were strictly excluded from the timing loops.
 
-1. **2D B-Plane Vectorized Monte Carlo Sampling ($10^6$ particles):**
-   - Implemented in NumPy vectorized Cholesky sampling.
-   - Measured wall-clock latency: **$41.95\text{ ms}$** median ($43.61\text{ ms}$ mean).
-   - RetNet inference latency: **$3.25\text{ ms}$**.
-   - **Empirical speedup over 2D B-plane MC: $\approx 15\times\text{--}40\times$ faster**.
+1. **Measured Single-Core CPU Latencies:**
+   - Logistic Regression: **$0.115\text{ ms}$** median (mean $0.124\text{ ms}$)
+   - RetNet Recurrent (O(1) step): **$0.663\text{ ms}$** median (mean $0.781\text{ ms}$)
+   - Standard Transformer: **$0.886\text{ ms}$** median (mean $0.939\text{ ms}$)
+   - RetNet Parallel ($L=14$): **$1.051\text{ ms}$** median (mean $1.249\text{ ms}$)
+   - HistGradientBoosting: **$1.286\text{ ms}$** median (mean $1.416\text{ ms}$)
+   - Random Forest (200 trees): **$11.018\text{ ms}$** median (mean $11.368\text{ ms}$)
+   - 2D B-Plane Monte Carlo ($10^6$ particles): **$44.619\text{ ms}$** median (mean $44.689\text{ ms}$)
 
-2. **Full 3D Numerical Orbit Propagation ($10^6$ trajectories):**
-   - High-fidelity propagation incorporating non-spherical gravity ($J_2\dots J_{70,70}$), atmospheric drag, and SRP in operational software (NASA CARA, ESA DRAMA).
-   - Typical wall-clock runtime: **$3,000\text{--}5,000\text{ ms}$** per encounter.
-   - **Estimated speedup over 3D numerical propagation: $\approx 1,000\times\text{--}2,500\times$ faster**.
+2. **Empirical Speedups over 2D B-Plane Monte Carlo ($44.62\text{ ms}$):**
+   - RetNet Recurrent: **$67.3\times$ faster**
+   - Standard Transformer: **$50.3\times$ faster**
+   - HistGradientBoosting: **$34.7\times$ faster**
+   - Logistic Regression: **$389.0\times$ faster**
+   - Random Forest: **$4.0\times$ faster**
 
 ---
 
@@ -239,9 +244,9 @@ python -m pytest tests/
 
 **Results:**
 - `tests/test_forecaster_shapes.py`: 2 passed
-- `tests/test_mathematical_validation.py`: 20 passed
+- `tests/test_mathematical_validation.py`: 21 passed
 - `tests/test_monte_carlo_engine.py`: 9 passed
 - `tests/test_packing.py`: 2 passed
-- **Total:** **33 passed in 6.12 seconds, 0 failed, 0 errors**.
+- **Total:** **34 passed in 3.80 seconds, 0 failed, 0 errors**.
 
 Every mathematical property, basis orthonormality condition, edge case, and safety disclaimer tested passed verification.

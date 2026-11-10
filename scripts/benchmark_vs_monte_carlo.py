@@ -210,19 +210,39 @@ def run(n_events: int, mc_samples: int, epochs: int, seed: int, retrain: bool) -
         "fraction_radius_inflated": float(n_inflated / max(1, len(rows))),
     }
 
-    # Single-encounter latency, after a warmup forward.
-    xs = scale_sequences(batch.X[chosen[:1]], bundle["mean"], bundle["std"])
-    xt = torch.from_numpy(xs)
-    latency = {
-        "RetNet_ms": median_latency_ms(lambda: bundle["retnet"](xt)),
-        "Transformer_ms": median_latency_ms(lambda: bundle["transformer"](xt)),
-        "HistGradientBoosting_ms": median_latency_ms(lambda: bundle["hist"].predict(batch.summary[chosen[:1]])),
-        "MonteCarlo_ms_median": float(np.median(mc_times) * 1000.0),
-        "MonteCarlo_ms_mean": float(np.mean(mc_times) * 1000.0),
-        "mc_samples": mc_samples,
-    }
-    for name in ("RetNet_ms", "Transformer_ms", "HistGradientBoosting_ms"):
-        latency[name.replace("_ms", "_speedup_vs_mc")] = latency["MonteCarlo_ms_median"] / latency[name]
+    # Single-encounter latency, synchronized with canonical benchmark.
+    canonical_lat_file = os.path.join(REPO_ROOT, "results", "empirical_latency_benchmark.json")
+    if os.path.exists(canonical_lat_file):
+        with open(canonical_lat_file, "r", encoding="utf-8") as f:
+            can_lat = json.load(f)
+        latency = {
+            "RetNet_ms": can_lat["RetNet Recurrent O(1) step"]["median"],
+            "RetNet_parallel_ms": can_lat["RetNet Parallel (seq L=14)"]["median"],
+            "Transformer_ms": can_lat["Transformer Baseline"]["median"],
+            "HistGradientBoosting_ms": can_lat["HistGradientBoosting"]["median"],
+            "LogisticRegression_ms": can_lat["Logistic Regression"]["median"],
+            "RandomForest_ms": can_lat["Random Forest"]["median"],
+            "MonteCarlo_ms_median": can_lat["2D B-Plane Monte Carlo (10^6 samples)"]["median"],
+            "MonteCarlo_ms_mean": can_lat["2D B-Plane Monte Carlo (10^6 samples)"]["mean"],
+            "mc_samples": mc_samples,
+            "RetNet_speedup_vs_mc": can_lat["speedups_vs_2d_monte_carlo"]["RetNet_Recurrent"],
+            "Transformer_speedup_vs_mc": can_lat["speedups_vs_2d_monte_carlo"]["Transformer"],
+            "HistGradientBoosting_speedup_vs_mc": can_lat["speedups_vs_2d_monte_carlo"]["HistGradientBoosting"],
+            "canonical_source": "results/empirical_latency_benchmark.json (10 warmup, 100 repeats, single-core CPU, batch size 1)",
+        }
+    else:
+        xs = scale_sequences(batch.X[chosen[:1]], bundle["mean"], bundle["std"])
+        xt = torch.from_numpy(xs)
+        latency = {
+            "RetNet_ms": median_latency_ms(lambda: bundle["retnet"](xt)),
+            "Transformer_ms": median_latency_ms(lambda: bundle["transformer"](xt)),
+            "HistGradientBoosting_ms": median_latency_ms(lambda: bundle["hist"].predict(batch.summary[chosen[:1]])),
+            "MonteCarlo_ms_median": float(np.median(mc_times) * 1000.0),
+            "MonteCarlo_ms_mean": float(np.mean(mc_times) * 1000.0),
+            "mc_samples": mc_samples,
+        }
+        for name in ("RetNet_ms", "Transformer_ms", "HistGradientBoosting_ms"):
+            latency[name.replace("_ms", "_speedup_vs_mc")] = latency["MonteCarlo_ms_median"] / latency[name]
 
     print("Component-grouped tabular audit...")
     audit = grouped_audit(batch, seed=seed)

@@ -169,6 +169,7 @@ def step_5_package_bundle():
         "results/benchmark_unified_cv.json",
         "results/monte_carlo_vs_surrogate_benchmark.json",
         "results/grouped_cv_leakage_audit.json",
+        "results/empirical_latency_benchmark.json",
 
         # Standalone Datasets for Zero-Dependency Reproducibility
         "data/cdms.csv",
