@@ -1,7 +1,7 @@
 {
   "provenance": {
-    "timestamp_utc": "2026-11-10T14:04:21Z",
-    "git_commit": "9e1f25f3e8c9f8effed5556014adc99b254c5281",
+    "timestamp_utc": "2026-11-10T15:07:45Z",
+    "git_commit": "1ad24646a528dcdb5d72c16c0f67f065df7e2ed8",
     "dataset_md5": {
       "cdms.csv": "18079794cc1403b46d014ee5913a3fd1",
       "satcat.csv": "77b99affa6ad3aff73990913653d2020"
@@ -1011,6 +1011,44 @@
       "HistGradientBoosting": 41.34646642465526,
       "LogisticRegression": 482.5002676346856,
       "RandomForest": 4.04544155077897
+    },
+    "metadata": {
+      "benchmark_type": "canonical_frozen_reference",
+      "status": "frozen_reference",
+      "description": "Standardized single-core CPU latency benchmark reference for publication tables and speedup claims",
+      "source_revision": "9e1f25f3e8c9f8effed5556014adc99b254c5281",
+      "hardware_environment": {
+        "cpu": "Intel64 Family 6 Model 170 Stepping 4, GenuineIntel (x86_64)",
+        "threads_used": 1,
+        "device": "cpu",
+        "os": "Windows 10/11 AMD64",
+        "python_version": "3.11.9",
+        "torch_version": "2.13.0+cpu"
+      },
+      "measurement_protocol": {
+        "batch_size": 1,
+        "warmup_iterations": 10,
+        "measurement_repetitions": 100,
+        "disk_io_excluded": true,
+        "satcat_merging_excluded": true,
+        "single_encounter_inference": true
+      },
+      "canonical_medians_ms": {
+        "Logistic Regression": 0.09385,
+        "Random Forest": 11.1935,
+        "HistGradientBoosting": 1.0952,
+        "Transformer Baseline": 0.7765,
+        "RetNet Recurrent O(1) step": 0.56605,
+        "RetNet Parallel (seq L=14)": 0.8473,
+        "2D B-Plane Monte Carlo (10^6 samples)": 45.28265
+      },
+      "canonical_speedups_vs_2d_mc": {
+        "RetNet_Recurrent": 80.0,
+        "Transformer": 58.3,
+        "HistGradientBoosting": 41.3,
+        "LogisticRegression": 482.5,
+        "RandomForest": 4.0
+      }
     }
   },
   "oof_evaluation": {

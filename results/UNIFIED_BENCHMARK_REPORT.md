@@ -15,7 +15,7 @@
 | Model Class | Model | AUC-ROC | PR-AUC (AP) | Test Accuracy ($\tau=0.5$) | Test F1 ($\tau=0.5$) | Brier Score ($\downarrow$) | ECE ($\downarrow$) | Measured Latency (Batch=1) |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 | **Classical Physics** | **2D B-Plane Monte Carlo ($10^6$ particles)** | Reference | Reference | N/A | N/A | N/A | N/A | 45.28 ms (Measured) |
-| Naive Baseline | **Majority Class** | 0.5000 ± 0.0000 | 0.2512 ± 0.0006 | 0.7488 ± 0.0006 | 0.0000 ± 0.0000 | 0.1881 ± 0.0003 | 0.0003 ± 0.0006 | < 0.05 ms |
+| Naive Baseline | **Majority Class** | 0.5000 ± 0.0000 | 0.2512 ± 0.0006 | 0.7488 ± 0.0006 | 0.0000 ± 0.0000 | 0.1881 ± 0.0003 | 0.0003 ± 0.0006 | Not benchmarked |
 | Linear Tabular | **Logistic Regression** | 0.8424 ± 0.0299 | 0.6700 ± 0.0653 | 0.7727 ± 0.0436 | 0.6107 ± 0.0396 | 0.1602 ± 0.0289 | 0.1449 ± 0.0377 | 0.094 ms |
 | Tree Ensemble | **Random Forest** | 0.9050 ± 0.0357 | 0.7957 ± 0.0684 | 0.8361 ± 0.0401 | 0.6815 ± 0.0617 | 0.1119 ± 0.0198 | 0.1054 ± 0.0235 | 11.19 ms |
 | Gradient Boosting | **HistGradientBoosting** | 0.9086 ± 0.0226 | 0.8121 ± 0.0439 | 0.8744 ± 0.0296 | 0.7361 ± 0.0714 | 0.1028 ± 0.0203 | 0.0950 ± 0.0160 | 1.10 ms |
