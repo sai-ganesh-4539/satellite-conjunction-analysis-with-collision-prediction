@@ -1,0 +1,161 @@
+\documentclass[journal]{IEEEtran}
+
+\usepackage{amsmath,amsfonts,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{cite}
+\usepackage{url}
+\usepackage{hyperref}
+\usepackage{microtype}
+\usepackage{siunitx}
+\usepackage{subcaption}
+
+\title{Satellite Conjunction Assessment via Physics-Enriched Triage Classifiers: A Comparative Study of Classical and Deep Architectures}
+
+\author{Sai~Ganesh
+\thanks{Sai Ganesh is with the Department of Computer Science and Engineering. Project repository and artifacts: \url{https://github.com/sai-ganesh-4539/satellite-conjunction-analysis-with-collision-prediction}.}}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+As the catalog of trackable objects in Low Earth Orbit (LEO) expands beyond 36,000 bodies, satellite operations face an escalating volume of daily Conjunction Data Messages (CDMs). Operational safety workflows rely on high-fidelity numerical trajectory propagation and Monte Carlo covariance sampling to estimate collision probabilities ($P_c$), an approach computationally intractable for catalog-wide real-time screening. In this paper, we evaluate machine learning triage classifiers to identify critical collision risks ($\max P_c \ge 5 \times 10^{-4}$) directly from multi-day CDM tracks enriched with orbital mechanics from the Space-Track Satellite Catalog (SATCAT). We benchmark a diverse hierarchy of models across 836 real satellite conjunction events under a unified 5-fold cross-validation protocol: naive baseline (Majority Class), stochastic Markov Chains, autoregressive time-series models (ARIMA), linear regression (L2), decision tree ensembles (Random Forest, HistGradientBoosting), and deep sequence architectures (Standard Transformer, Retentive Network / RetNet). Tabular gradient boosting achieves the highest discriminative performance ($\text{AUC} = 0.9086 \pm 0.0226$, $\text{PR-AUC} = 0.8121 \pm 0.0439$). Among deep models, the causal Standard Transformer scores $\text{AUC} = 0.8307 \pm 0.0369$, while RetNet scores $\text{AUC} = 0.7506 \pm 0.0484$. Descriptive fold differences across the 5 outer test folds indicate a performance difference favoring softmax attention on sparse tracks ($+0.0801 \pm 0.0457$ AUC over RetNet, sample std with $N-1=4$, $\text{ddof}=1$; population $\sigma = 0.0409$; inferential $p$-values omitted due to training fold overlap per Dietterich, 1998), with RetNet providing constant $O(1)$ memory and sub-millisecond recurrent latency ($0.57\text{ ms}$). Under strict graph-component cross-validation with zero satellite overlap between train and test, tree models experience an 18-point drop while regularized linear models maintain solid generalization ($0.823 \pm 0.051$), demonstrating that tree models partially rely on static spacecraft identity features. At validation-tuned operating thresholds targeting $\ge 90\%$ recall, gradient boosting safely screens out $65.4\%$ of non-critical events. Finally, we implement a vectorized 1,000,000-sample B-plane Monte Carlo simulator to establish a numerical integration baseline. We document that public CDMs omit 2x2 B-plane covariance matrices, requiring isotropic scale calibration against catalog $P_c$ under which 71% of high-risk cases require radius inflation due to along-track covariance elongation. Consequently, Monte Carlo simulations verify numerical quadrature rather than independent orbit determination. RetNet recurrent inference executes in $0.57\text{ ms}$ ($0.566\text{ ms}$) and Transformer in $0.78\text{ ms}$ ($0.776\text{ ms}$), achieving verified $80.0\times$ and $58.3\times$ speedups over 2D B-plane Monte Carlo sampling ($45.28\text{ ms}$), with HistGradientBoosting ($1.10\text{ ms}$) achieving a $41.3\times$ speedup.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Astrodynamics, Conjunction Assessment, Space Debris, Collision Probability, RetNet, Transformers, Monte Carlo Simulation, Triage Classifier.
+\end{IEEEkeywords}
+
+\section{Introduction}
+
+With the rapid deployment of commercial mega-constellations and the fragmentation of defunct rocket bodies, space situational awareness (SSA) has transitioned into a big-data domain. Satellite operators receive thousands of Conjunction Data Messages (CDMs) weekly from the 18th Space Defense Squadron via Space-Track.org. Each CDM encapsulates state vectors, relative miss distance, positional covariance matrices, and estimated collision probability ($P_c$) at the Time of Closest Approach (TCA).
+
+Operational spaceflight safety manages risk through a multi-tiered pipeline:
+\begin{enumerate}
+    \item \textbf{Screening Volumes:} Coarse geometric filters identify object pairs passing within predefined thresholds (e.g., 5 km miss distance in LEO).
+    \item \textbf{Analytical Approximations:} Two-dimensional Foster or Akella formulas compute short-term $P_c$ under linear relative motion and constant Gaussian covariance.
+    \item \textbf{High-Fidelity Numerical Propagation:} When covariance geometry is non-linear or atmospheric drag uncertainty is high, Monte Carlo simulations propagate thousands to millions of sampled trajectories to compute numerical collision probabilities.
+\end{enumerate}
+
+Because high-fidelity numerical propagation across hundreds of thousands of candidate encounters is computationally demanding, automated machine learning triage classifiers have been proposed to prioritize high-risk events. However, existing literature presents several methodological challenges: direct target leakage from including instantaneous $P_c$ in features, absence of classical time-series baselines, uncalibrated probabilities, and satellite overlap across cross-validation splits.
+
+\subsection{Contributions}
+In this work, we provide:
+\begin{enumerate}
+    \item \textbf{A Leak-Free Astrodynamics Benchmark:} We extract 3,351 CDMs across 836 unique encounters, strictly excluding $P_c$ from inputs and incorporating 14 orbital mechanics features from the Space-Track Satellite Catalog (SATCAT).
+    \item \textbf{Comprehensive Model Hierarchy:} We evaluate eight architectures spanning naive baselines, Markov Chain state transitions, Autoregressive/ARIMA time-series models, Logistic Regression, Random Forest, HistGradientBoosting, Standard Transformer, and RetNet.
+    \item \textbf{Dynamic Sequence Packing:} We implement causal sequence packing (\texttt{pack\_real\_first}) that moves non-zero observations to the front, eliminating padding artifacts and NaN attention scores. Causal upper-triangular masks strictly prevent future lookahead.
+    \item \textbf{Multi-Scheme Grouped CV Audit:} We evaluate models under strict graph-component grouping (Union-Find) ensuring zero satellite overlap across splits, revealing that tree models drop from 0.954 to 0.777 while regularized linear models generalize robustly (0.823).
+    \item \textbf{Empirical Monte Carlo Speedup:} Profiled on a single-core CPU, RetNet recurrent inference ($0.566\text{ ms}$, $0.57\text{ ms}$) and Transformer inference ($0.776\text{ ms}$, $0.78\text{ ms}$) achieve verified $80.0\times$ and $58.3\times$ speedups over 1,000,000-sample 2D B-plane Monte Carlo quadrature ($45.28\text{ ms}$), with HistGradientBoosting ($1.095\text{ ms}$) achieving a $41.3\times$ speedup.
+\end{enumerate}
+
+\section{Astrodynamics \& Problem Formulation}
+
+\subsection{B-Plane Conjunction Geometry}
+In the encounter reference frame, the relative velocity $\vec{v}_{\text{rel}} = \vec{v}_2 - \vec{v}_1$ defines the normal to the conjunction B-plane. Let the relative position at TCA be $\vec{r}_{\text{miss}} = [d, 0]^T$ and the combined projected covariance be $\mathbf{C} \in \mathbb{R}^{2 \times 2}$. The combined hard-body collision cross-section is a circle of radius $R = R_1 + R_2$, derived from the spacecraft exclusion radii.
+
+The 2D Foster collision probability is given by:
+\begin{equation}
+P_c = \frac{1}{2\pi \sqrt{\det \mathbf{C}}} \iint_{x^2 + y^2 \le R^2} \exp\left(-\frac{1}{2} [\vec{r} - \vec{r}_{\text{miss}}]^T \mathbf{C}^{-1} [\vec{r} - \vec{r}_{\text{miss}}]\right) dx dy
+\end{equation}
+
+In our vectorized Monte Carlo engine, $N = 10^6$ particles are sampled from $\mathcal{N}(\vec{r}_{\text{miss}}, \mathbf{C})$, and the empirical collision frequency is evaluated as:
+\begin{equation}
+\hat{P}_c = \frac{1}{N} \sum_{i=1}^N \mathbb{I}(x_i^2 + y_i^2 \le R^2)
+\end{equation}
+
+\subsection{Multi-Scale Retention (RetNet Formulation)}
+RetNet replaces multi-head self-attention with multi-scale retention. For a sequence $\mathbf{X} \in \mathbb{R}^{T \times d}$, retention projects queries, keys, and values: $Q = X W_Q$, $K = X W_K$, $V = X W_V$.
+
+In parallel training mode:
+\begin{equation}
+o_n = \sum_{i \le n} \gamma^{n-i} (q_n \cdot k_i) v_i, \quad \gamma \in (0, 1)
+\end{equation}
+In recurrent streaming mode:
+\begin{equation}
+S_n = \gamma S_{n-1} + k_n^T v_n, \quad o_n = q_n S_n
+\end{equation}
+where $S_n \in \mathbb{R}^{d \times d}$ is the recurrent state matrix, providing strict $O(1)$ constant memory and constant inference time per update.
+
+\subsection{Causal Transformer Baseline}
+The deep sequence baseline (\texttt{TransformerBaseline}) consists of a 3-layer Transformer encoder ($d_{\text{model}} = 64, n_{\text{heads}} = 4, d_{\text{ff}} = 256$, dropout = 0.1). Sequences are dynamically packed using \texttt{pack\_real\_first} such that valid historical updates occupy contiguous leading indices $0 \le t < k$, with padding tokens located strictly at the end. Attention weights are constrained by an upper-triangular causal mask:
+\begin{equation}
+M_{i, j} = \begin{cases} 0, & j \le i \\ -\infty, & j > i \end{cases}
+\end{equation}
+enforcing $A_{i, j} = 0$ for all $j > i$ via \texttt{torch.nn.Transformer.generate\_square\_subsequent\_mask(T)} with \texttt{is\_causal=True}. Over an observed historical prefix $\mathcal{S}_k = \{\mathbf{x}_1, \dots, \mathbf{x}_k\}$, each CDM represents past tracking telemetry obtained leading up to TCA. Applying a causal encoder over this prefix evaluates trajectory evolution up to decision epoch $k$ without lookahead leakage into unobserved future CDMs ($t > k$). The pooled output at step $k$ predicts the final collision risk triage at TCA.
+
+\section{Experimental Results}
+
+\begin{table*}[t]
+\centering
+\caption{Comprehensive 5-Fold Cross-Validation Performance (Mean $\pm$ Std across 5 Test Folds)}
+\label{tab:benchmark}
+\begin{tabular}{llccccccc}
+\toprule
+\textbf{Category} & \textbf{Model Architecture} & \textbf{ROC-AUC} & \textbf{PR-AUC} & \textbf{Accuracy} ($\tau=0.5$) & \textbf{F1-Score} ($\tau=0.5$) & \textbf{Brier} ($\downarrow$) & \textbf{ECE} ($\downarrow$) & \textbf{Latency (Single-Core)} \\
+\midrule
+Classical Physics & Monte Carlo ($10^6$ particles) & Reference & Reference & N/A & N/A & N/A & N/A & $45.283\text{ ms}$ (Measured) \\
+Naive & Majority Class & $0.5000 \pm 0.0000$ & $0.2512 \pm 0.0006$ & $0.7488 \pm 0.0006$ & $0.0000 \pm 0.0000$ & $0.1881$ & $0.0003$ & Not benchmarked \\
+Stochastic & Markov Chain (MC) & $0.5777 \pm 0.0197$ & $0.2849 \pm 0.0091$ & $0.7488 \pm 0.0006$ & $0.0000 \pm 0.0000$ & $0.1830$ & $\mathbf{0.0179}$ & Not benchmarked \\
+Statistical & ARIMA / Autoregressive & $0.7838 \pm 0.0481$ & $0.6351 \pm 0.0828$ & $0.7308 \pm 0.0384$ & $0.5750 \pm 0.0544$ & $0.1835$ & $0.1917$ & Not benchmarked \\
+Linear & Logistic Regression (L2) & $0.8424 \pm 0.0299$ & $0.6700 \pm 0.0653$ & $0.7727 \pm 0.0436$ & $0.6107 \pm 0.0396$ & $0.1602$ & $0.1449$ & $\mathbf{0.094\text{ ms}}$ \\
+Tree Ensemble & Random Forest (200 trees) & $0.9050 \pm 0.0357$ & $0.7957 \pm 0.0684$ & $0.8361 \pm 0.0401$ & $0.6815 \pm 0.0617$ & $0.1119$ & $0.1054$ & $11.194\text{ ms}$ \\
+Gradient Boost & HistGradientBoosting & $\mathbf{0.9086 \pm 0.0226}$ & $\mathbf{0.8121 \pm 0.0439}$ & $\mathbf{0.8744 \pm 0.0296}$ & $\mathbf{0.7361 \pm 0.0714}$ & $\mathbf{0.1028}$ & $0.0950$ & $1.095\text{ ms}$ \\
+Deep Sequence & Standard Transformer & $0.8307 \pm 0.0369$ & $0.6440 \pm 0.0633$ & $0.7655 \pm 0.0499$ & $0.6091 \pm 0.0536$ & $0.1586$ & $0.1444$ & $0.776\text{ ms}$ \\
+Deep Surrogate & RetNet (Proposed) & $0.7506 \pm 0.0484$ & $0.5349 \pm 0.0722$ & $0.7308 \pm 0.0251$ & $0.5114 \pm 0.0458$ & $0.1819$ & $0.1466$ & $\mathbf{0.566\text{ ms}}$ \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\begin{table}[ht]
+\centering
+\caption{Safety-Critical Triage Performance (Validation Target $\ge 90\%$ Recall)}
+\label{tab:triage}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Model} & \textbf{Test Recall} & \textbf{Test Precision} & \textbf{Flagged (\%)} & \textbf{Screened Out (\%)} \\
+\midrule
+Logistic Regression & $85.71\%$ & $44.22\%$ & $48.7\%$ & $51.3\%$ \\
+Random Forest & $\mathbf{92.38\%}$ & $50.15\%$ & $46.3\%$ & $53.7\%$ \\
+HistGradientBoosting & $84.29\%$ & $\mathbf{61.24\%}$ & $\mathbf{34.6\%}$ & $\mathbf{65.4\%}$ \\
+Standard Transformer & $88.57\%$ & $41.64\%$ & $53.4\%$ & $46.6\%$ \\
+RetNet Surrogate & $84.29\%$ & $34.33\%$ & $61.7\%$ & $38.3\%$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[ht]
+\centering
+\caption{Satellite Identity Leakage Audit (Grouped CV across 3 Seeds)}
+\label{tab:grouped}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Grouping Strategy} & \textbf{HistGB AUC} & \textbf{RF AUC} & \textbf{LogReg AUC} \\
+\midrule
+Stratified (Standard) & $0.954 \pm 0.028$ & $0.922 \pm 0.022$ & $0.833 \pm 0.035$ \\
+Group by SAT 1 & $0.957 \pm 0.025$ & $0.924 \pm 0.028$ & $0.839 \pm 0.038$ \\
+Group by SAT 2 & $0.950 \pm 0.026$ & $0.923 \pm 0.027$ & $0.836 \pm 0.022$ \\
+\textbf{Component Grouping} & $\mathbf{0.777 \pm 0.053}$ & $\mathbf{0.802 \pm 0.045}$ & $\mathbf{0.823 \pm 0.051}$ \\
+\bottomrule
+\end{tabular}
+\vspace{1mm}
+\noindent\small{\textbf{Note on Grouped CV Scope:} The connected-component grouped cross-validation audit evaluated tabular models only. Deep sequence architectures (Standard Transformer, RetNet) have not been evaluated for unseen-satellite generalization under this protocol and must not be assumed validated against satellite identity leakage.}
+\end{table}
+
+\section{Discussion \& Conclusion}
+Our findings show that tabular gradient boosting achieves the highest discriminative performance on in-catalog encounters ($0.9086$ AUC), successfully screening out $65.4\%$ of conjunctions. However, the Grouped CV audit reveals an 18-point drop for tree models when evaluated on completely unseen satellites, whereas regularized linear models maintain solid generalization ($0.823$ AUC). Deep sequence models provide constant $O(1)$ streaming inference on edge hardware, and our integrated Monte Carlo engine demonstrates a verified $41.3\times\text{--}80.0\times$ speedup over 2D B-plane particle sampling ($45.28\text{ ms}$). Illustrative collision avoidance maneuvers are demonstrated with explicit flight safety disclaimers.
+
+\begin{thebibliography}{10}
+\bibitem{vaswani2017} A.~Vaswani \emph{et~al.}, ``Attention is all you need,'' in \emph{NeurIPS}, 2017.
+\bibitem{sun2023} Y.~Sun \emph{et~al.}, ``Retentive network: A successor to transformer for large language models,'' \emph{arXiv:2307.08621}, 2023.
+\bibitem{foster1992} J.~L. Foster and H.~S. Estes, ``A parametric analysis of orbital debris collision probability,'' \emph{NASA JSC-25898}, 1992.
+\bibitem{akella2000} M.~R. Akella and K.~T. Alfriend, ``Probability of collision between space objects,'' \emph{JGCD}, vol.~23, no.~4, pp. 769--772, 2000.
+\bibitem{chan1997} K.~Chan, ``Collision probability for satellites in close encounters,'' \emph{Space Flight}, 1997.
+\bibitem{kemeny1976} J.~G. Kemeny and J.~L. Snell, \emph{Finite Markov Chains}.\hskip 1em plus 0.5em minus 0.4em\relax Springer, 1976.
+\bibitem{box1976} G.~E. Box and G.~M. Jenkins, \emph{Time Series Analysis: Forecasting and Control}.\hskip 1em plus 0.5em minus 0.4em\relax Holden-Day, 1976.
+\bibitem{lin2017} T.-Y. Lin \emph{et~al.}, ``Focal loss for dense object detection,'' in \emph{ICCV}, 2017.
+\bibitem{dietterich1998} T.~G. Dietterich, ``Approximate statistical tests for comparing supervised classification learning algorithms,'' \emph{Neural Computation}, vol.~10, no.~7, pp. 1895--1923, 1998.
+\end{thebibliography}
+
+\end{document}

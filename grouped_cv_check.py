@@ -14,13 +14,14 @@ Usage:  python grouped_cv_check.py [cdms.csv] [satcat.csv] [--seeds 3]
 """
 import os
 import sys
+import json
+import argparse
 os.environ["LOKY_MAX_CPU_COUNT"] = "1"
 os.environ["OMP_NUM_THREADS"] = "1"
 
 REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
 
-import argparse
 import numpy as np
 from sklearn.model_selection import StratifiedKFold, StratifiedGroupKFold
 from sklearn.ensemble import HistGradientBoostingClassifier, RandomForestClassifier
@@ -87,12 +88,41 @@ def main():
     else:
         print(f"\n(group_component skipped: one component holds {big:.0%} of events)")
 
+    audit_payload = {
+        "metadata": {
+            "dataset_cdm": str(a.cdm),
+            "dataset_satcat": str(a.satcat),
+            "n_events": int(len(y)),
+            "n_unique_sat1": int(len(set(ev["sat1"]))),
+            "n_unique_sat2": int(len(set(ev["sat2"]))),
+            "n_components": int(len(set(ev["component"]))),
+            "largest_component_fraction": float(big),
+            "n_seeds": int(a.seeds),
+            "seeds": list(range(a.seeds)),
+            "k_folds": 5,
+            "total_folds_per_scheme": int(a.seeds * 5),
+            "script": "grouped_cv_check.py",
+        },
+        "with_length_features": {
+            "feature_description": "Last observation, mean, min, max across 14 channels + range trend + sequence length count",
+            "schemes": {}
+        },
+        "without_length_features": {
+            "feature_description": "Last observation, mean, min, max across 14 channels (excluding norm_step_pos and length count) + range trend",
+            "schemes": {}
+        }
+    }
+
     for drop_length in (False, True):
         F = summarize(ev["X"], n, drop_length)
+        block_key = "without_length_features" if drop_length else "with_length_features"
+        audit_payload[block_key]["n_features"] = int(F.shape[1])
+        audit_payload[block_key]["schemes"] = {}
         print(f"\n=== {'WITHOUT' if drop_length else 'WITH'} event-length features "
               f"({F.shape[1]} features) ===")
         print(f"{'scheme':16s} {'model':13s} {'AUC':>15s} {'PR-AUC':>15s}")
         for scheme in schemes:
+            audit_payload[block_key]["schemes"][scheme] = {}
             for mname, make in models().items():
                 aucs, aps = [], []
                 for seed in range(a.seeds):
@@ -101,10 +131,27 @@ def main():
                             continue
                         m = make(seed).fit(F[tr], y[tr])
                         p = m.predict_proba(F[te])[:, 1]
-                        aucs.append(roc_auc_score(y[te], p))
-                        aps.append(average_precision_score(y[te], p))
-                print(f"{scheme:16s} {mname:13s} {np.mean(aucs):.3f} +/- {np.std(aucs):.3f}  "
-                      f"{np.mean(aps):.3f} +/- {np.std(aps):.3f}")
+                        aucs.append(float(roc_auc_score(y[te], p)))
+                        aps.append(float(average_precision_score(y[te], p)))
+                mean_auc, std_auc = float(np.mean(aucs)), float(np.std(aucs))
+                mean_ap, std_ap = float(np.mean(aps)), float(np.std(aps))
+                audit_payload[block_key]["schemes"][scheme][mname] = {
+                    "auc_mean": mean_auc,
+                    "auc_std": std_auc,
+                    "pr_auc_mean": mean_ap,
+                    "pr_auc_std": std_ap,
+                    "fold_aucs": aucs,
+                    "fold_pr_aucs": aps,
+                }
+                print(f"{scheme:16s} {mname:13s} {mean_auc:.3f} +/- {std_auc:.3f}  "
+                      f"{mean_ap:.3f} +/- {std_ap:.3f}")
+
+    out_json = os.path.join(REPO_ROOT, "results", "grouped_cv_leakage_audit.json")
+    os.makedirs(os.path.dirname(out_json), exist_ok=True)
+    with open(out_json, "w", encoding="utf-8") as f:
+        json.dump(audit_payload, f, indent=2)
+    print(f"\nWrote fold-level grouped CV audit artifact to: {out_json}")
+
     print("\nRead it like this: if AUC drops a lot from 'stratified' to 'group_*', the 0.91 was "
           "partly object identity. If it drops a lot WITHOUT length features, the model is "
           "partly reading event length (more CDMs -> higher max Pc), not geometry.")

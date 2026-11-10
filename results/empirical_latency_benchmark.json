@@ -1,44 +1,111 @@
 {
   "Logistic Regression": {
-    "median": 0.1563999999234511,
-    "mean": 0.15135469999677298,
-    "p95": 0.1772000000528351,
-    "p99": 0.22413399996821678,
-    "min": 0.12620000006791088
+    "median": 0.09384999975736719,
+    "mean": 0.09403500003827503,
+    "std": 0.012645697877752306,
+    "min": 0.08039999738684855,
+    "max": 0.17749999824445695,
+    "p95": 0.11090500156569759,
+    "p99": 0.13780100209260146
   },
-  "Random Forest (100 trees)": {
-    "median": 7.772100000011051,
-    "mean": 7.977170200001865,
-    "p95": 9.829170000000431,
-    "p99": 11.436716000171145,
-    "min": 6.0922000000118715
+  "Random Forest": {
+    "median": 11.193500000445056,
+    "mean": 10.991625000024214,
+    "std": 1.3960296963436483,
+    "min": 8.325700000568759,
+    "max": 13.44969999991008,
+    "p95": 12.970679999125423,
+    "p99": 13.421187998901587
   },
   "HistGradientBoosting": {
-    "median": 1.5574499999502223,
-    "mean": 1.8638354000017898,
-    "p95": 3.12678500001766,
-    "p99": 4.159449000039785,
-    "min": 1.2993000000278698
+    "median": 1.0951999993267236,
+    "mean": 1.318946000028518,
+    "std": 0.4490246287147682,
+    "min": 0.9776000006240793,
+    "max": 2.624200002173893,
+    "p95": 2.32321500134276,
+    "p99": 2.464908999390901
   },
-  "Transformer (seq L=14)": {
-    "median": 1.7278499999520136,
-    "mean": 1.9236085999955321,
-    "p95": 2.7836249999381835,
-    "p99": 4.612886999998407,
-    "min": 1.3768000001164182
+  "Transformer Baseline": {
+    "median": 0.7765000009385403,
+    "mean": 1.0646820002875756,
+    "std": 0.6177653485585526,
+    "min": 0.7053999979689252,
+    "max": 4.873199999565259,
+    "p95": 2.1381200011092005,
+    "p99": 2.7513329993962654
   },
   "RetNet Parallel (seq L=14)": {
-    "median": 5.728200000021388,
-    "mean": 5.889856399998735,
-    "p95": 7.495214999914879,
-    "p99": 8.517373999984557,
-    "min": 4.383700000062163
+    "median": 0.8473000016238075,
+    "mean": 1.0118200001306832,
+    "std": 0.3754328402178349,
+    "min": 0.8092999996733852,
+    "max": 2.596100002847379,
+    "p95": 1.8265600030645146,
+    "p99": 2.3761219989683027
   },
   "RetNet Recurrent O(1) step": {
-    "median": 1.2104500000305052,
-    "mean": 1.366980700005115,
-    "p95": 2.112940000051821,
-    "p99": 3.019473000063044,
-    "min": 1.1058000000048196
+    "median": 0.5660500009980751,
+    "mean": 0.6839749999562628,
+    "std": 0.517750507685975,
+    "min": 0.5104999981995206,
+    "max": 5.316399998264387,
+    "p95": 1.2433749996489496,
+    "p99": 1.978417001300858
+  },
+  "2D B-Plane Monte Carlo (10^6 samples)": {
+    "median": 45.282650000444846,
+    "mean": 45.24693899988051,
+    "std": 4.058434759906823,
+    "min": 38.05189999911818,
+    "max": 72.94180000099004,
+    "p95": 49.54779000017879,
+    "p99": 51.295152999919196,
+    "samples": 1000000
+  },
+  "speedups_vs_2d_monte_carlo": {
+    "RetNet_Recurrent": 79.99761491140573,
+    "Transformer": 58.316355371168825,
+    "HistGradientBoosting": 41.34646642465526,
+    "LogisticRegression": 482.5002676346856,
+    "RandomForest": 4.04544155077897
+  },
+  "metadata": {
+    "benchmark_type": "canonical_frozen_reference",
+    "status": "frozen_reference",
+    "description": "Standardized single-core CPU latency benchmark reference for publication tables and speedup claims",
+    "source_revision": "9e1f25f3e8c9f8effed5556014adc99b254c5281",
+    "hardware_environment": {
+      "cpu": "Intel64 Family 6 Model 170 Stepping 4, GenuineIntel (x86_64)",
+      "threads_used": 1,
+      "device": "cpu",
+      "os": "Windows 10/11 AMD64",
+      "python_version": "3.11.9",
+      "torch_version": "2.13.0+cpu"
+    },
+    "measurement_protocol": {
+      "batch_size": 1,
+      "warmup_iterations": 10,
+      "measurement_repetitions": 100,
+      "disk_io_excluded": true,
+      "satcat_merging_excluded": true,
+      "single_encounter_inference": true
+    },
+    "canonical_medians_ms": {
+      "Logistic Regression": 0.09385,
+      "Random Forest": 11.1935,
+      "HistGradientBoosting": 1.0952,
+      "Transformer Baseline": 0.7765,
+      "RetNet Recurrent O(1) step": 0.56605,
+      "RetNet Parallel (seq L=14)": 0.8473,
+      "2D B-Plane Monte Carlo (10^6 samples)": 45.28265
+    },
+    "canonical_speedups_vs_2d_mc": {
+      "RetNet_Recurrent": 80.0,
+      "Transformer": 58.3,
+      "HistGradientBoosting": 41.3,
+      "LogisticRegression": 482.5,
+      "RandomForest": 4.0
+    }
   }
 }

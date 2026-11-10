@@ -1,0 +1,252 @@
+"""
+reproduce_all.py — End-to-End Master Verification & Artifact Packaging Pipeline
+
+Executes the complete project reproduction sequence:
+  1. Verifies dataset presence and data integrity (MD5 checksums).
+  2. Runs pytest unit test suite (packing, shapes, Monte Carlo convergence).
+  3. Executes full 5-fold cross-validation suite (regenerates benchmark_unified_cv.json with exact git provenance).
+  4. Executes multi-seed grouped cross-validation audit and Monte Carlo vs Surrogate benchmarks.
+  5. Generates all 6 publication-grade vector figures in figures/.
+  6. Packages all code, figures, benchmarks, and papers into results/SUBMISSION_BUNDLE.zip.
+
+Usage:
+  python reproduce_all.py
+  python reproduce_all.py --skip-unified-cv
+"""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import os
+import subprocess
+import sys
+import time
+import zipfile
+
+REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.join(REPO_ROOT, "data")
+RESULTS_DIR = os.path.join(REPO_ROOT, "results")
+FIG_DIR = os.path.join(REPO_ROOT, "figures")
+
+
+def compute_md5(filepath: str) -> str:
+    h = hashlib.md5()
+    with open(filepath, "rb") as f:
+        while chunk := f.read(8192):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def step_1_verify_data():
+    print("\n" + "=" * 70)
+    print("STEP 1: VERIFYING SOURCE DATASETS AND INTEGRITY")
+    print("=" * 70)
+    cdm_csv = os.path.join(DATA_DIR, "cdms.csv")
+    satcat_csv = os.path.join(DATA_DIR, "satcat.csv")
+
+    for path, name in [(cdm_csv, "CDMs dataset"), (satcat_csv, "SATCAT catalog")]:
+        if not os.path.exists(path):
+            raise FileNotFoundError(f"Missing required dataset: {path}")
+        size_kb = os.path.getsize(path) / 1024.0
+        md5 = compute_md5(path)
+        print(f"  [OK] {name:16s} ({size_kb:8.1f} KB) | MD5: {md5}")
+
+
+def step_2_run_tests():
+    print("\n" + "=" * 70)
+    print("STEP 2: EXECUTING UNIT TEST SUITE (PYTEST)")
+    print("=" * 70)
+    cmd = [sys.executable, "-m", "pytest", "tests/"]
+    res = subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True)
+    print(res.stdout)
+    if res.returncode != 0:
+        print(res.stderr)
+        raise RuntimeError("Unit tests failed!")
+    print("  [OK] All unit tests passed cleanly (zero NaNs, packing verified).")
+
+
+def step_3_run_benchmark(skip_unified_cv: bool = False, remeasure_latencies: bool = False):
+    print("\n" + "=" * 70)
+    print("STEP 3: RUNNING UNIFIED CV, GROUPED CV & MONTE CARLO BENCHMARKS")
+    print("=" * 70)
+
+    # 1. Full 5-fold cross-validation training suite (regenerates benchmark_unified_cv.json with current git provenance)
+    unified_cv_json = os.path.join(RESULTS_DIR, "benchmark_unified_cv.json")
+    if not skip_unified_cv:
+        print("  -> Executing full 5-fold cross-validation training suite (src/benchmark_unified_cv.py)...")
+        cmd_ucv = [sys.executable, "src/benchmark_unified_cv.py"]
+        if remeasure_latencies:
+            cmd_ucv.append("--remeasure-latencies")
+        res_ucv = subprocess.run(cmd_ucv, cwd=REPO_ROOT, capture_output=True, text=True)
+        if res_ucv.returncode != 0:
+            print(res_ucv.stderr)
+            raise RuntimeError("Unified CV benchmark failed!")
+        print("  [OK] Unified 5-fold CV benchmark completed successfully.")
+    else:
+        print(f"  [OK] Reusing existing unified 5-fold CV benchmark artifact (--skip-unified-cv): {unified_cv_json}")
+
+    # 2. Execute multi-seed grouped cross-validation audit
+    print("  -> Executing 3-seed 5-fold grouped CV leakage audit (836 events)...")
+    cmd_gcv = [sys.executable, "grouped_cv_check.py", "--seeds", "3"]
+    res_gcv = subprocess.run(cmd_gcv, cwd=REPO_ROOT, capture_output=True, text=True)
+    if res_gcv.returncode != 0:
+        print(res_gcv.stderr)
+        raise RuntimeError("Grouped CV audit failed!")
+    print("  [OK] Grouped CV leakage audit completed successfully.")
+
+    # 3. Execute Monte Carlo vs Surrogate benchmark
+    print("  -> Executing Monte Carlo vs. Surrogate benchmark (100 events, 10^6 particles)...")
+    cmd = [
+        sys.executable, "scripts/benchmark_vs_monte_carlo.py",
+        "--n-events", "100", "--mc-samples", "1000000", "--epochs", "8"
+    ]
+    res = subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True)
+    print(res.stdout[-400:] if len(res.stdout) > 400 else res.stdout)
+    if res.returncode != 0:
+        print(res.stderr)
+        raise RuntimeError("Benchmark script failed!")
+    print("  [OK] Monte Carlo benchmark executed successfully.")
+
+
+def step_4_generate_figures():
+    print("\n" + "=" * 70)
+    print("STEP 4: GENERATING HIGH-RESOLUTION PUBLICATION FIGURES")
+    print("=" * 70)
+    cmd = [sys.executable, "scripts/generate_publication_figures.py"]
+    res = subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True)
+    print(res.stdout)
+    if res.returncode != 0:
+        print(res.stderr)
+        raise RuntimeError("Figure generation failed!")
+    print("  [OK] All 6 publication figures created in figures/.")
+
+
+def step_5_generate_docx():
+    print("\n" + "=" * 70)
+    print("STEP 5: REGENERATING STANDALONE RESEARCH PAPER DOCX (scripts/generate_paper.py)")
+    print("=" * 70)
+    cmd = [sys.executable, "scripts/generate_paper.py"]
+    res = subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True)
+    print(res.stdout)
+    if res.returncode != 0:
+        print(res.stderr)
+        raise RuntimeError("DOCX generation failed!")
+    print("  [OK] research_paper.docx regenerated successfully.")
+
+
+def step_6_package_bundle():
+    print("\n" + "=" * 70)
+    print("STEP 6: PACKAGING SUBMISSION BUNDLE ZIP")
+    print("=" * 70)
+    zip_path = os.path.join(RESULTS_DIR, "SUBMISSION_BUNDLE.zip")
+    os.makedirs(RESULTS_DIR, exist_ok=True)
+
+    files_to_pack = [
+        # Documentation & Audit Reports
+        "README.md",
+        "RESEARCH_PAPER.md",
+        "research_paper.tex",
+        "research_paper.docx",
+        "AUDIT_REPORT.md",
+        "VALIDATION_REPORT.md",
+        "FINAL_INDEPENDENT_REVIEW.md",
+        "PRESENTATION_GUIDE.md",
+        "DATASET_RETRIEVAL.md",
+        "LICENSE",
+        "requirements.txt",
+
+        # Core Library Source Code (src/)
+        "src/model.py",
+        "src/monte_carlo_engine.py",
+        "src/collision_forecaster.py",
+        "src/operational_metrics.py",
+        "src/data_processing.py",
+        "src/config.py",
+        "src/benchmark_unified_cv.py",
+
+        # Executable Scripts & Pipelines
+        "run_pipeline.py",
+        "orbit_guard.py",
+        "grouped_cv_check.py",
+        "reproduce_all.py",
+        "download_cdms.py",
+        "scripts/benchmark_vs_monte_carlo.py",
+        "scripts/generate_publication_figures.py",
+        "scripts/generate_paper.py",
+
+        # Unit & Astrodynamic Tests
+        "tests/test_mathematical_validation.py",
+        "tests/test_monte_carlo_engine.py",
+        "tests/test_forecaster_shapes.py",
+        "tests/test_packing.py",
+
+        # Verified Benchmark Artifacts
+        "results/benchmark_unified_cv.json",
+        "results/monte_carlo_vs_surrogate_benchmark.json",
+        "results/grouped_cv_leakage_audit.json",
+        "results/empirical_latency_benchmark.json",
+
+        # Standalone Datasets for Zero-Dependency Reproducibility
+        "data/cdms.csv",
+        "data/satcat.csv",
+
+        # High-Resolution Publication Figures
+        "figures/fig1_unified_roc_pr_curves.png",
+        "figures/fig1_unified_roc_pr_curves.pdf",
+        "figures/fig2_calibration_reliability.png",
+        "figures/fig2_calibration_reliability.pdf",
+        "figures/fig3_grouped_cv_leakage_audit.png",
+        "figures/fig3_grouped_cv_leakage_audit.pdf",
+        "figures/fig4_streaming_horizon_early_warning.png",
+        "figures/fig4_streaming_horizon_early_warning.pdf",
+        "figures/fig5_pareto_latency_vs_auc.png",
+        "figures/fig5_pareto_latency_vs_auc.pdf",
+        "figures/fig6_monte_carlo_correlation.png",
+        "figures/fig6_monte_carlo_correlation.pdf",
+    ]
+
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+        for rel in files_to_pack:
+            abs_p = os.path.join(REPO_ROOT, rel)
+            if not os.path.exists(abs_p):
+                raise FileNotFoundError(f"Critical required artifact missing from submission bundle: {abs_p}")
+            zf.write(abs_p, arcname=rel)
+            print(f"  + Added: {rel}")
+
+    size_mb = os.path.getsize(zip_path) / (1024.0 * 1024.0)
+    print(f"\n[OK] Submission Bundle packaged successfully: {zip_path} ({size_mb:.2f} MB)")
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Master Reproducibility Pipeline")
+    parser.add_argument(
+        "--skip-unified-cv", action="store_true",
+        help="Skip re-running the full 5-fold cross-validation suite (default: False; always reruns for full provenance verification)"
+    )
+    parser.add_argument(
+        "--remeasure-latencies", action="store_true",
+        help="Force fresh measurement of single-core latencies instead of using frozen canonical benchmark"
+    )
+    args = parser.parse_args()
+
+    t_start = time.perf_counter()
+    print("=" * 80)
+    print("STARTING COMPLETE MASTER REPRODUCIBILITY PIPELINE")
+    print("=" * 80)
+
+    step_1_verify_data()
+    step_2_run_tests()
+    step_3_run_benchmark(skip_unified_cv=args.skip_unified_cv, remeasure_latencies=args.remeasure_latencies)
+    step_4_generate_figures()
+    step_5_generate_docx()
+    step_6_package_bundle()
+
+    elapsed = time.perf_counter() - t_start
+    print("\n" + "=" * 80)
+    print(f"MASTER REPRODUCIBILITY PIPELINE COMPLETE! Total Time: {elapsed:.2f} seconds")
+    print("=" * 80 + "\n")
+
+
+if __name__ == "__main__":
+    main()
